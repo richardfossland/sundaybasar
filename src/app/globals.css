@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* SundayBasar — warm, festive bedehus-basar palette (amber + deep red on
+   dark walnut). Distinct from the sibling apps (Harvest: night field,
+   Market: navy trade). */
+:root {
+  --color-bg:      #251310; /* dark walnut — background */
+  --color-surface: #36211A;
+  --color-border:  #4D3023;
+  --color-gold:    #F0B243; /* basar amber — primary */
+  --color-red:     #C0503F; /* festive red — accents/danger */
+  --color-green:   #6B9460; /* success */
+  --color-text:    #F6EFE4;
+  --color-muted:   #BA9F8D;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-gold { animation: pulse-gold 2s ease-in-out infinite; }
+
+/* Winner pop — the reveal moment. */
+@keyframes winner-pop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-winner-pop { animation: winner-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+
+/* Confetti pieces (projector winner card). */
+@keyframes confetti-fall {
+  0%   { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+}
+.animate-confetti { animation: confetti-fall 3.2s linear forwards; }
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+.animate-wiggle { animation: wiggle 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-pulse-gold, .animate-winner-pop,
+  .animate-confetti, .animate-wiggle {
+    animation: none;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}

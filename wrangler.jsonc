@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sundaybasar",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "routes": [{ "pattern": "basar.sundaysuite.app", "custom_domain": true }],
+  "observability": {
+    "enabled": true
+  }
+  // Runtime env (NEXT_PUBLIC_* are build-time inlined):
+  //   No runtime secrets needed — the app uses the public anon key only;
+  //   all sensitive operations are gated inside SECURITY DEFINER RPCs.
+}
