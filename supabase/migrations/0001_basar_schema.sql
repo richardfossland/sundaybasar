@@ -233,7 +233,7 @@ end $$;
 -- Internal: verify a player's secret.
 create or replace function basar._verify(p_player_id uuid, p_secret text)
 returns boolean language sql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
   select exists (
     select 1 from basar.player_secrets
     where player_id = p_player_id and secret = p_secret
@@ -243,7 +243,7 @@ $$;
 -- Internal: verify the host secret for a session.
 create or replace function basar._verify_host(p_session_id uuid, p_host_secret text)
 returns boolean language sql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
   select exists (
     select 1 from basar.host_secrets
     where session_id = p_session_id and secret = p_host_secret
@@ -256,7 +256,7 @@ $$;
 create or replace function basar._allocate(
   p_session_id uuid, p_player_id uuid, p_round int, p_count int, p_kind text
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare v_to int; v_from int; v_alloc_id uuid; v_name text;
 begin
   insert into basar.lot_counters (session_id, round, last_number)
@@ -291,7 +291,7 @@ create or replace function basar.create_session(
   p_vipps_number text default null, p_vipps_link text default null,
   p_price int default 10, p_gratis_lodd int default 5
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare v_code text; v_sid uuid; v_secret text; i int;
   alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 begin
@@ -337,7 +337,7 @@ end; $$;
 --    ONCE. In gratis mode, auto-allocates the configured number of lots.
 create or replace function basar.join_session(p_code text, p_name text)
 returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record; pid uuid; sec text;
 begin
   select * into s from basar.sessions where code = upper(trim(p_code));
@@ -365,7 +365,7 @@ end; $$;
 --    until reveal_draw flips the flag.
 create or replace function basar.get_revealed_draws(p_session_id uuid)
 returns jsonb language sql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
   select coalesce(jsonb_agg(jsonb_build_object(
     'draw_id', d.id, 'prize_id', d.prize_id, 'prize_name', p.name,
     'round', d.round, 'lot_number', d.lot_number,
@@ -379,7 +379,7 @@ $$;
 -- 3. Presence (player secret-gated, best effort).
 create or replace function basar.set_online(p_player_id uuid, p_secret text, p_online bool)
 returns void language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 begin
   if basar._verify(p_player_id, p_secret) then
     update basar.players set is_online = p_online where id = p_player_id;
@@ -397,7 +397,7 @@ create or replace function basar.update_settings(
   p_tildeling text default null, p_trekning text default null,
   p_gratis_lodd int default null
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare has_lots bool;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -435,7 +435,7 @@ end; $$;
 create or replace function basar.add_prize(
   p_session_id uuid, p_host_secret text, p_name text, p_description text default null
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare v_pos int; v_id uuid;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -454,7 +454,7 @@ create or replace function basar.update_prize(
   p_session_id uuid, p_host_secret text, p_prize_id uuid,
   p_name text, p_description text default null
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
     return jsonb_build_object('ok', false, 'error', 'Ikke vert'); end if;
@@ -470,7 +470,7 @@ end; $$;
 create or replace function basar.delete_prize(
   p_session_id uuid, p_host_secret text, p_prize_id uuid
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
     return jsonb_build_object('ok', false, 'error', 'Ikke vert'); end if;
@@ -487,7 +487,7 @@ end; $$;
 create or replace function basar.move_prize(
   p_session_id uuid, p_host_secret text, p_prize_id uuid, p_direction text
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare cur record; nb record;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -517,7 +517,7 @@ end; $$;
 create or replace function basar.add_offline_player(
   p_session_id uuid, p_host_secret text, p_name text
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record; pid uuid;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -541,7 +541,7 @@ create or replace function basar.allocate_lots(
   p_session_id uuid, p_host_secret text, p_player_id uuid, p_count int,
   p_kind text default 'kjop'
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -564,7 +564,7 @@ end; $$;
 create or replace function basar.revoke_allocation(
   p_session_id uuid, p_host_secret text, p_allocation_id uuid
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare a record; v_name text;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -601,7 +601,7 @@ end; $$;
 create or replace function basar.start_draw(
   p_session_id uuid, p_host_secret text, p_prize_id uuid
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record; lot record; v_name text; v_draw_id uuid;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -663,7 +663,7 @@ end; $$;
 -- 10. Reveal the winner (ends the suspense animation).
 create or replace function basar.reveal_draw(p_session_id uuid, p_host_secret text)
 returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record; d record; v_prize_name text;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -691,7 +691,7 @@ end; $$;
 --     auto-receives fresh lots for the new round.
 create or replace function basar.acknowledge_draw(p_session_id uuid, p_host_secret text)
 returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare s record; p record;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -724,7 +724,7 @@ end; $$;
 create or replace function basar.void_draw(
   p_session_id uuid, p_host_secret text, p_draw_id uuid, p_reason text default null
 ) returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 declare d record; v_prize_name text;
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
@@ -755,7 +755,7 @@ end; $$;
 -- 13. End the session.
 create or replace function basar.end_session(p_session_id uuid, p_host_secret text)
 returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
     return jsonb_build_object('ok', false, 'error', 'Ikke vert'); end if;
@@ -773,7 +773,7 @@ end; $$;
 -- 14. Full audit log (host only) — includes unrevealed and voided rows.
 create or replace function basar.get_draw_log(p_session_id uuid, p_host_secret text)
 returns jsonb language plpgsql security definer
-set search_path = basar, public as $$
+set search_path = basar, public, extensions as $$
 begin
   if not basar._verify_host(p_session_id, p_host_secret) then
     return jsonb_build_object('ok', false, 'error', 'Ikke vert'); end if;
