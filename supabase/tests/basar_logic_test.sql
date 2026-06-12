@@ -62,7 +62,7 @@ begin
   r := basar.create_session('host-1','kjop','klassisk','123456',null,10,5);
   perform pg_temp.assert_ok(r, '2: create_session kjop/klassisk');
   perform pg_temp.assert_true((r->>'code') ~ '^[A-HJ-NP-Z]{4}$', '2: code is 4 letters, no I/O');
-  perform pg_temp.assert_true(char_length(r->>'host_secret') = 48, '2: host_secret is 48 hex chars');
+  perform pg_temp.assert_true(char_length(r->>'host_secret') = 64, '2: host_secret is 64 hex chars');
   sid := (r->>'session_id')::uuid; hsec := r->>'host_secret';
 
   perform pg_temp.assert_err(basar.create_session('h','feil','klassisk','123456'),
@@ -91,7 +91,7 @@ begin
 
   r := basar.join_session(code,'Ola');
   perform pg_temp.assert_ok(r, '3: join ok');
-  perform pg_temp.assert_true(char_length(r->>'secret') = 48, '3: player secret returned once');
+  perform pg_temp.assert_true(char_length(r->>'secret') = 64, '3: player secret returned once');
   pid := (r->>'player_id')::uuid;
   perform pg_temp.assert_eq((select player_count from sessions where id=sid), 1, '3: player_count incremented');
   perform pg_temp.assert_eq((select count(*) from lots where session_id=sid)::int, 0,

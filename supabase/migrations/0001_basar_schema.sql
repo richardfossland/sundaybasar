@@ -25,8 +25,16 @@
 --     `basar` → Save. Without that, PostgREST will not route basar.* calls.
 -- ============================================================================
 
-create extension if not exists "pgcrypto";
+-- No extension dependencies: secrets and draw randomness use core-Postgres
+-- gen_random_uuid() (strong RNG, PG13+) — pgcrypto's schema placement varies
+-- between Supabase and vanilla Postgres and broke prod once; never again.
 create schema if not exists basar;
+
+-- 256-bit hex secret from two v4 UUIDs (core Postgres, no pgcrypto).
+create or replace function basar._new_secret()
+returns text language sql volatile as $$
+  select replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
+$$;
 
 -- ── SESSION STATE ───────────────────────────────────────────────────────────
 create table if not exists basar.sessions (
@@ -57,7 +65,7 @@ create table if not exists basar.sessions (
 -- ── HOST SECRET (locked; minted by create_session, returned exactly once) ───
 create table if not exists basar.host_secrets (
   session_id uuid primary key references basar.sessions(id) on delete cascade,
-  secret text not null default encode(gen_random_bytes(24), 'hex')
+  secret text not null default basar._new_secret()
 );
 
 -- ── PUBLIC PLAYER INFO (no secrets) ─────────────────────────────────────────
@@ -74,8 +82,13 @@ create index if not exists idx_basar_players_session on basar.players (session_i
 -- ── PER-PLAYER SECRET (locked; offline players have no row) ─────────────────
 create table if not exists basar.player_secrets (
   player_id uuid primary key references basar.players(id) on delete cascade,
-  secret text not null default encode(gen_random_bytes(24), 'hex')
+  secret text not null default basar._new_secret()
 );
+
+-- Self-heal pre-existing deployments whose defaults still reference pgcrypto
+-- (create table if not exists does not update defaults on re-run).
+alter table basar.host_secrets   alter column secret set default basar._new_secret();
+alter table basar.player_secrets alter column secret set default basar._new_secret();
 
 -- ── LOT NUMBER COUNTER (locked, internal — serializes numbering) ────────────
 create table if not exists basar.lot_counters (
@@ -311,7 +324,7 @@ begin
   for i in 1..20 loop
     v_code := '';
     for _ in 1..4 loop
-      v_code := v_code || substr(alphabet, (get_byte(gen_random_bytes(1), 0) % 24) + 1, 1);
+      v_code := v_code || substr(alphabet, 1 + floor(random() * 24)::int, 1);
     end loop;
     begin
       insert into basar.sessions (code, host_id, tildeling, trekning,
@@ -595,7 +608,7 @@ end; $$;
 -- 9. Start a draw. The conditional UPDATE on draw_state is the concurrency
 --    gate (double-tap / two host tabs ⇒ second caller gets 0 rows).
 --    Winner is chosen server-side: order by gen_random_uuid() = uniform pick
---    backed by pgcrypto's strong RNG, no modulo bias. The draw row is created
+--    backed by core Postgres' strong UUID RNG, no modulo bias. The draw row is
 --    with revealed=false — invisible to clients (draws is a locked table)
 --    until reveal_draw publishes it.
 create or replace function basar.start_draw(
@@ -793,6 +806,7 @@ end; $$;
 -- Internal helpers must not be callable from PostgREST. Revoking from PUBLIC
 -- matters: functions are PUBLIC-executable by default, so revoking only from
 -- anon/authenticated would leave them reachable through the PUBLIC grant.
+revoke execute on function basar._new_secret() from public, anon, authenticated;
 revoke execute on function basar._verify(uuid, text) from public, anon, authenticated;
 revoke execute on function basar._verify_host(uuid, text) from public, anon, authenticated;
 revoke execute on function basar._allocate(uuid, uuid, int, int, text) from public, anon, authenticated;
