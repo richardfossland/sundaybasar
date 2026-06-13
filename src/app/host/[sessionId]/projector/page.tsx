@@ -1,14 +1,32 @@
 'use client'
 
-import { use, useMemo } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useSession } from '@/lib/useSession'
-import { Confetti, currentReveal, NumberRoller, WinnerCard } from '@/components/DrawDisplay'
+import {
+  AudioToggle,
+  Confetti,
+  currentReveal,
+  DrawReel,
+  WinnerCard,
+} from '@/components/DrawDisplay'
+import { armAudio, setMuted } from '@/lib/drawSound'
 import { VippsCard } from '@/components/VippsCard'
 
 export default function Projector({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
   const { session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId)
+
+  // Synthesized SFX. Off until the host arms it from a click (browser autoplay
+  // policy) — the projector is opened by the host on the big screen.
+  const [sound, setSound] = useState(false)
+  // Keep the reel mounted through spinning→revealed so it can animate the
+  // landing; reveal the winner card only once the reel has settled.
+  const [landed, setLanded] = useState(false)
+  const drawState = session?.draw_state
+  useEffect(() => {
+    if (drawState !== 'revealed') setLanded(false)
+  }, [drawState])
 
   const roundLots = useMemo(
     () => (session ? lots.filter((l) => l.round === session.current_round) : []),
@@ -35,19 +53,42 @@ export default function Projector({ params }: { params: Promise<{ sessionId: str
   )
   const joinUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://basar.sundaysuite.app'}/?kode=${session.code}`
 
-  // Fullscreen takeovers during a draw
-  if (session.draw_state === 'spinning') {
+  // Fullscreen takeovers during a draw. The reel stays mounted across
+  // spinning→revealed: it rolls blind while spinning, then decelerates and
+  // lands on the server-published winner; only after it settles do we swap in
+  // the big winner card + confetti.
+  // `revealed` can arrive a beat before useSession's get_revealed_draws
+  // refetch lands `reveal`; keep the reel spinning blind in that gap rather
+  // than flashing back to the lobby.
+  const drawing = session.draw_state === 'spinning' || session.draw_state === 'revealed'
+  if (drawing) {
+    const showWinner = session.draw_state === 'revealed' && reveal && landed
     return (
       <Big>
-        <NumberRoller numbers={poolNumbers} big />
-      </Big>
-    )
-  }
-  if (session.draw_state === 'revealed' && reveal) {
-    return (
-      <Big>
-        <Confetti />
-        <WinnerCard draw={reveal} big />
+        <div className="absolute right-6 top-6">
+          <AudioToggle
+            on={sound}
+            onToggle={(next) => {
+              setSound(next)
+              setMuted(!next)
+              if (next) armAudio()
+            }}
+          />
+        </div>
+        {showWinner ? (
+          <>
+            <Confetti />
+            <WinnerCard draw={reveal!} big />
+          </>
+        ) : (
+          <DrawReel
+            poolNumbers={poolNumbers}
+            reveal={reveal}
+            big
+            sound={sound}
+            onLanded={() => setLanded(true)}
+          />
+        )}
       </Big>
     )
   }
@@ -111,8 +152,16 @@ export default function Projector({ params }: { params: Promise<{ sessionId: str
             {prizes.map((p, i) => {
               const w = winnerByPrize.get(p.id)
               return (
-                <li key={p.id} className="flex items-baseline gap-3 text-2xl">
+                <li key={p.id} className="flex items-center gap-3 text-2xl">
                   <span className="text-[#BA9F8D]">{i + 1}.</span>
+                  {p.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.image_url}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
                   <span className={w ? 'text-[#7d6a5d] line-through' : 'text-[#F6EFE4]'}>
                     {p.name}
                   </span>
@@ -134,7 +183,7 @@ export default function Projector({ params }: { params: Promise<{ sessionId: str
 
 function Big({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-10 text-3xl text-[#BA9F8D]">
+    <main className="relative flex min-h-screen items-center justify-center px-10 text-3xl text-[#BA9F8D]">
       {children}
     </main>
   )

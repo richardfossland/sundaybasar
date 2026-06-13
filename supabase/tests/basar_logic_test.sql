@@ -455,4 +455,85 @@ begin
     '15: description updated');
 end $$;
 
+-- ============ 16. Prize images (migration 0002, additive) ============
+do $$
+declare r jsonb; sid uuid; hsec text; pid uuid; pid2 uuid; lot record; rd jsonb;
+  url constant text := 'https://example.com/cdn/cake.jpg';
+begin
+  -- 16a. additive column exists, nullable, no default → old prizes unaffected.
+  perform pg_temp.assert_true(
+    exists (select 1 from information_schema.columns
+            where table_schema='basar' and table_name='prizes' and column_name='image_url'),
+    '16a: prizes.image_url column exists');
+  perform pg_temp.assert_true(
+    (select is_nullable from information_schema.columns
+       where table_schema='basar' and table_name='prizes' and column_name='image_url') = 'YES',
+    '16a: image_url is nullable');
+
+  -- 16b. add_prize with no image keeps it null (backward compatible call).
+  r := basar.create_session('host-16','gratis','klassisk');
+  sid := (r->>'session_id')::uuid; hsec := r->>'host_secret';
+  pid := ((basar.add_prize(sid,hsec,'Premie uten bilde'))->>'prize_id')::uuid;
+  perform pg_temp.assert_true((select image_url from prizes where id=pid) is null,
+    '16b: prize without image has null image_url');
+
+  -- 16c. add_prize WITH image stores it.
+  pid2 := ((basar.add_prize(sid,hsec,'Kake',null,url))->>'prize_id')::uuid;
+  perform pg_temp.assert_true((select image_url from prizes where id=pid2) = url,
+    '16c: prize image_url stored');
+
+  -- 16d. invalid (non-http) image URL is rejected by add_prize.
+  perform pg_temp.assert_err(basar.add_prize(sid,hsec,'Ond','x',
+    'javascript:alert(1)'), 'Ugyldig bilde-URL', '16d: add_prize rejects non-http url');
+
+  -- 16e. update_prize: null image arg LEAVES image unchanged.
+  perform pg_temp.assert_ok(basar.update_prize(sid,hsec,pid2,'Kake2','beskr'),
+    '16e: update prize without touching image');
+  perform pg_temp.assert_true((select image_url from prizes where id=pid2) = url,
+    '16e: image_url unchanged when arg omitted');
+
+  -- 16f. update_prize: empty string CLEARS the image.
+  perform pg_temp.assert_ok(basar.update_prize(sid,hsec,pid2,'Kake3',null,''),
+    '16f: clear image with empty string');
+  perform pg_temp.assert_true((select image_url from prizes where id=pid2) is null,
+    '16f: image_url cleared');
+
+  -- 16g. update_prize rejects bad URL.
+  perform pg_temp.assert_err(basar.update_prize(sid,hsec,pid2,'K','d','data:foo'),
+    'Ugyldig bilde-URL', '16g: update_prize rejects non-http url');
+
+  -- 16h. CHECK constraint guards direct (service_role) writes too.
+  begin
+    update basar.prizes set image_url = 'ftp://nope' where id = pid;
+    perform pg_temp.assert_true(false, '16h: check constraint should have blocked ftp url');
+  exception when check_violation then
+    perform pg_temp.assert_true(true, '16h: check constraint blocks non-http url');
+  end;
+
+  -- 16i. get_revealed_draws surfaces prize_image_url for a real reveal.
+  --      (gratis mode auto-allocates lots to the offline player → a pot exists.)
+  perform basar.update_prize(sid,hsec,pid2,'Kake',null,url);
+  perform basar.add_offline_player(sid,hsec,'Kari');
+  perform pg_temp.assert_ok(basar.start_draw(sid,hsec,pid2), '16i: start draw');
+  perform pg_temp.assert_ok(basar.reveal_draw(sid,hsec), '16i: reveal draw');
+  rd := basar.get_revealed_draws(sid);
+  perform pg_temp.assert_true((rd->0->>'prize_image_url') = url,
+    '16i: get_revealed_draws includes prize_image_url');
+
+  -- 16j. get_draw_log surfaces prize_image_url too.
+  perform pg_temp.assert_true(
+    ((basar.get_draw_log(sid,hsec)->'draws')->0->>'prize_image_url') = url,
+    '16j: get_draw_log includes prize_image_url');
+
+  -- 16k. exactly ONE add_prize / update_prize overload (no ambiguity).
+  perform pg_temp.assert_eq(
+    (select count(*)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+       where n.nspname='basar' and p.proname='add_prize'), 1,
+    '16k: single add_prize overload');
+  perform pg_temp.assert_eq(
+    (select count(*)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+       where n.nspname='basar' and p.proname='update_prize'), 1,
+    '16k: single update_prize overload');
+end $$;
+
 do $$ begin raise notice 'ALL GAME-LOGIC TESTS PASSED'; end $$;

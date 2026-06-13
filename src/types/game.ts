@@ -59,6 +59,8 @@ export interface Prize {
   name: string
   description: string | null
   position: number
+  /** Optional public Supabase Storage URL of a prize photo (migration 0002). */
+  image_url?: string | null
 }
 
 export interface GameEvent {
@@ -74,6 +76,8 @@ export interface RevealedDraw {
   draw_id: string
   prize_id: string
   prize_name: string
+  /** Optional prize photo URL (migration 0002); absent on older deployments. */
+  prize_image_url?: string | null
   round: number
   lot_number: number
   player_id: string | null
