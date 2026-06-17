@@ -811,11 +811,28 @@ revoke execute on function basar._verify(uuid, text) from public, anon, authenti
 revoke execute on function basar._verify_host(uuid, text) from public, anon, authenticated;
 revoke execute on function basar._allocate(uuid, uuid, int, int, text) from public, anon, authenticated;
 
+-- Argument signatures are spelled out so this GRANT stays unambiguous even on a
+-- re-apply where a later migration (0002) has already added an overload — e.g.
+-- add_prize / update_prize gain a trailing p_image_url. Bare names would raise
+-- "function name is not unique" once >1 overload exists; the explicit signatures
+-- below always select the exact 0001 functions.
 grant execute on function
-  basar.create_session, basar.join_session, basar.get_revealed_draws,
-  basar.set_online, basar.update_settings,
-  basar.add_prize, basar.update_prize, basar.delete_prize, basar.move_prize,
-  basar.add_offline_player, basar.allocate_lots, basar.revoke_allocation,
-  basar.start_draw, basar.reveal_draw, basar.acknowledge_draw, basar.void_draw,
-  basar.end_session, basar.get_draw_log
+  basar.create_session(text, text, text, text, text, int, int),
+  basar.join_session(text, text),
+  basar.get_revealed_draws(uuid),
+  basar.set_online(uuid, text, bool),
+  basar.update_settings(uuid, text, text, text, int, text, text, int),
+  basar.add_prize(uuid, text, text, text),
+  basar.update_prize(uuid, text, uuid, text, text),
+  basar.delete_prize(uuid, text, uuid),
+  basar.move_prize(uuid, text, uuid, text),
+  basar.add_offline_player(uuid, text, text),
+  basar.allocate_lots(uuid, text, uuid, int, text),
+  basar.revoke_allocation(uuid, text, uuid),
+  basar.start_draw(uuid, text, uuid),
+  basar.reveal_draw(uuid, text),
+  basar.acknowledge_draw(uuid, text),
+  basar.void_draw(uuid, text, uuid, text),
+  basar.end_session(uuid, text),
+  basar.get_draw_log(uuid, text)
   to anon, authenticated;
