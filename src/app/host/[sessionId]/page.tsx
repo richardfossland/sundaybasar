@@ -139,7 +139,9 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
           }}
         />
       )}
-      {tab === 'premier' && <PrizesTab {...{ call, prizes, revealedDraws }} />}
+      {tab === 'premier' && (
+        <PrizesTab {...{ call, prizes, revealedDraws, supabase, sessionId, setNotice }} />
+      )}
       {tab === 'trekning' && (
         <DrawTab {...{ call, session, prizes, revealedDraws, roundLots, setNotice }} />
       )}
@@ -344,16 +346,26 @@ function ParticipantsTab({
 
 // ── Premier ──────────────────────────────────────────────────────────────────
 
+const PRIZE_BUCKET = 'basar-prizes'
+
 function PrizesTab({
   call,
   prizes,
   revealedDraws,
+  supabase,
+  sessionId,
+  setNotice,
 }: {
   call: (fn: string, args?: Record<string, unknown>) => Promise<Record<string, unknown> | null>
   prizes: Prize[]
   revealedDraws: ReturnType<typeof useSession>['revealedDraws']
+  supabase: ReturnType<typeof useSession>['supabase']
+  sessionId: string
+  setNotice: (s: string) => void
 }) {
   const [name, setName] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
@@ -361,26 +373,87 @@ function PrizesTab({
     revealedDraws.findLast?.((d) => d.prize_id === prizeId && !d.voided) ??
     [...revealedDraws].reverse().find((d) => d.prize_id === prizeId && !d.voided)
 
+  // Upload a prize photo to a public Storage bucket and return its public URL.
+  // Optional convenience: hosts may also paste a URL directly. Storage is
+  // independent of the basar trust model — no fairness/audit data lives here.
+  async function uploadImage(file: File): Promise<string | null> {
+    if (!file.type.startsWith('image/')) {
+      setNotice('Filen er ikke et bilde.')
+      return null
+    }
+    if (file.size > 5_000_000) {
+      setNotice('Bildet er for stort (maks 5 MB).')
+      return null
+    }
+    setUploading(true)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `${sessionId}/${crypto.randomUUID()}.${ext}`
+    const { error } = await supabase.storage
+      .from(PRIZE_BUCKET)
+      .upload(path, file, { contentType: file.type, upsert: false })
+    setUploading(false)
+    if (error) {
+      setNotice(`Kunne ikke laste opp bildet: ${error.message}`)
+      return null
+    }
+    return supabase.storage.from(PRIZE_BUCKET).getPublicUrl(path).data.publicUrl
+  }
+
   async function add() {
     const n = name.trim()
     if (!n) return
-    if (await call('add_prize', { p_name: n })) setName('')
+    if (
+      await call('add_prize', { p_name: n, p_image_url: imageUrl.trim() || null })
+    ) {
+      setName('')
+      setImageUrl('')
+    }
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className={`${card} flex gap-2`}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="Ny premie"
-          maxLength={80}
-          className={input}
-        />
-        <button onClick={add} className={`${ghostBtn} shrink-0`}>
-          Legg til
-        </button>
+      <div className={`${card} flex flex-col gap-2`}>
+        <div className="flex gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder="Ny premie"
+            maxLength={80}
+            className={input}
+          />
+          <button onClick={add} className={`${ghostBtn} shrink-0`}>
+            Legg til
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="Bilde-URL (valgfritt)"
+            className={`${input} text-sm`}
+          />
+          <label className={`${ghostBtn} shrink-0 cursor-pointer text-sm leading-[1.6]`}>
+            {uploading ? 'Laster…' : 'Last opp'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+              onChange={async (e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (!f) return
+                const url = await uploadImage(f)
+                if (url) setImageUrl(url)
+              }}
+            />
+          </label>
+        </div>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+        )}
       </div>
       <ol className="flex flex-col gap-2">
         {prizes.map((p, i) => {
@@ -407,7 +480,16 @@ function PrizesTab({
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {p.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.image_url}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="min-w-0">
                     <p className="truncate font-medium text-[#F6EFE4]">
                       <span className="mr-2 text-[#BA9F8D]">{i + 1}.</span>
                       {p.name}
@@ -419,6 +501,7 @@ function PrizesTab({
                     ) : (
                       p.description && <p className="text-sm text-[#BA9F8D]">{p.description}</p>
                     )}
+                    </div>
                   </div>
                   {!w && (
                     <div className="flex shrink-0 gap-1">

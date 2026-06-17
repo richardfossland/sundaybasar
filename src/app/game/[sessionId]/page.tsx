@@ -4,7 +4,7 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from '@/lib/useSession'
 import { getIdentity } from '@/lib/identity'
-import { Confetti, currentReveal, NumberRoller, WinnerCard } from '@/components/DrawDisplay'
+import { Confetti, currentReveal, DrawReel, WinnerCard } from '@/components/DrawDisplay'
 import { VippsCard } from '@/components/VippsCard'
 
 export default function PlayerView({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -12,6 +12,10 @@ export default function PlayerView({ params }: { params: Promise<{ sessionId: st
   const { supabase, session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [identityChecked, setIdentityChecked] = useState(false)
+  const [landed, setLanded] = useState(false)
+  useEffect(() => {
+    if (session?.draw_state !== 'revealed') setLanded(false)
+  }, [session?.draw_state])
 
   useEffect(() => {
     const id = getIdentity()
@@ -58,20 +62,27 @@ export default function PlayerView({ params }: { params: Promise<{ sessionId: st
       </Centered>
     )
 
-  // Fullscreen draw overlay
-  if (session.draw_state === 'spinning') {
+  // Fullscreen draw overlay — the reel rolls blind while spinning, then lands
+  // on the server-published winner before the winner card appears.
+  const drawing = session.draw_state === 'spinning' || session.draw_state === 'revealed'
+  if (drawing) {
+    const isMe = !!reveal && reveal.player_id === playerId
+    const showWinner = session.draw_state === 'revealed' && reveal && landed
     return (
       <Centered>
-        <NumberRoller numbers={poolNumbers} big />
-      </Centered>
-    )
-  }
-  if (session.draw_state === 'revealed' && reveal) {
-    const isMe = reveal.player_id === playerId
-    return (
-      <Centered>
-        {isMe && <Confetti />}
-        <WinnerCard draw={reveal} big={isMe} isMe={isMe} />
+        {showWinner ? (
+          <>
+            {isMe && <Confetti />}
+            <WinnerCard draw={reveal!} big={isMe} isMe={isMe} />
+          </>
+        ) : (
+          <DrawReel
+            poolNumbers={poolNumbers}
+            reveal={reveal}
+            big
+            onLanded={() => setLanded(true)}
+          />
+        )}
       </Centered>
     )
   }

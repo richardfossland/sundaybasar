@@ -45,6 +45,25 @@ npm run cf:deploy    # bygg + deploy til Cloudflare
 
 ## Førstegangsoppsett i Supabase (manuelt)
 
-1. Kjør `supabase/migrations/0001_basar_schema.sql` i SQL-editoren.
+1. Kjør `supabase/migrations/0001_basar_schema.sql` i SQL-editoren, deretter
+   `supabase/migrations/0002_prize_images.sql` (valgfri premiebilder; trygg å
+   kjøre, additiv).
 2. **Dashboard → Settings → API → Exposed schemas → legg til `basar` → Save.**
    Uten dette feiler alle kall med 404/406.
+3. *(Valgfritt — kun for premiebilder)* Lag en **offentlig** Storage-bøtte
+   `basar-prizes` (Dashboard → Storage → New bucket → Public). Verten kan da
+   laste opp et bilde per premie; uten bøtta fungerer alt annet som før og
+   opplasting feiler pent med en melding. Man kan også bare lime inn en bilde-URL.
+
+## Trekning som show (storskjerm)
+
+Selve trekningen er en spektakkel-animasjon på storskjermen (og hos spillerne):
+et hjul/rulle av loddnumre som *bremser ned og lander* på vinneren, med Web
+Audio-lyd, konfetti og et stort vinnerkort. **Utfallet er 100 %
+server-autoritativt** — `start_draw` velger vinneren server-side og låser den i
+`draws` til `reveal_draw` publiserer den; animasjonen teatraliserer kun det
+allerede besluttede `lot_number`. Reel-matematikken (`src/lib/drawReel.ts`) er
+ren og enhetstestet (`src/lib/drawReel.test.ts`); lyden ligger i
+`src/lib/drawSound.ts`. Verten skrur på lyd med «Lyd på» på storskjermen (kreves
+av nettleserens autoplay-regler). Honorerer `prefers-reduced-motion` (hopper
+rett til resultatet, ingen lyd-spam).

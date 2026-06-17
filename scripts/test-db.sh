@@ -16,6 +16,8 @@ run() { docker cp "$1" "$NAME:/tmp/$(basename "$1")" >/dev/null; docker exec "$N
 echo "→ prelude (Supabase role/publication shims)"; run supabase/tests/_prelude.sql
 # Apply every migration in order (fresh-database story), then re-apply each a
 # second time to prove idempotency (create-or-replace / if-not-exists).
+# This loop automatically covers 0001 (schema), 0002 (prize images), 0003
+# (vinner_ut reveal leak fix) and any future migration.
 for f in supabase/migrations/*.sql; do echo "→ migration: $(basename "$f")"; run "$f"; done
 for f in supabase/migrations/*.sql; do echo "→ idempotency: $(basename "$f")"; run "$f"; done
 echo "→ game-logic assertions"
