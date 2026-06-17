@@ -320,9 +320,15 @@ begin
   prz3 := ((basar.add_prize(sid,hsec,'P3'))->>'prize_id')::uuid;
 
   r := basar.start_draw(sid,hsec,prz1); did := (r->>'draw_id')::uuid;
+  -- 0003 leak fix: the winning lot must NOT leave the pot during the spin —
+  -- basar.lots is anon-SELECT + in the realtime publication, so an eager
+  -- `removed=true` here leaks the winner before reveal_draw publishes it.
+  perform pg_temp.assert_eq((select count(*) from lots where session_id=sid and removed)::int, 0,
+    '10: vinner_ut — lot NOT removed during spin (no pre-reveal leak)');
+  perform basar.reveal_draw(sid,hsec);
   perform pg_temp.assert_eq((select count(*) from lots where session_id=sid and removed)::int, 1,
-    '10: vinner_ut — lot removed at draw time');
-  perform basar.reveal_draw(sid,hsec); perform basar.acknowledge_draw(sid,hsec);
+    '10: vinner_ut — lot removed at reveal time');
+  perform basar.acknowledge_draw(sid,hsec);
   perform basar.start_draw(sid,hsec,prz2); perform basar.reveal_draw(sid,hsec); perform basar.acknowledge_draw(sid,hsec);
   perform pg_temp.assert_eq((select count(*) from lots where session_id=sid and removed)::int, 2,
     '10: vinner_ut — both lots removed');
