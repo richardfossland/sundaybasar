@@ -4,22 +4,47 @@
    dark walnut). Distinct from the sibling apps (Harvest: night field,
    Market: navy trade). */
 :root {
-  --color-bg:      #251310; /* dark walnut — background */
-  --color-surface: #36211A;
-  --color-border:  #4D3023;
-  --color-gold:    #F0B243; /* basar amber — primary */
-  --color-red:     #C0503F; /* festive red — accents/danger */
-  --color-green:   #6B9460; /* success */
-  --color-text:    #F6EFE4;
-  --color-muted:   #BA9F8D;
+  --color-bg:        #251310; /* dark walnut — background (app character) */
+  --color-surface:   #36211A;
+  --color-border:    #4D3023;
+  --color-gold:      #EBB84B; /* suite brand gold — primary */
+  --color-gold-soft: #F2D58A; /* light gold */
+  --color-gold-deep: #D4A23A; /* deep gold */
+  --color-red:       #C0503F; /* festive red — accents/danger */
+  --color-red-soft:  #f0a99f; /* danger text on dark */
+  --color-green:     #6B9460; /* success */
+  --color-green-soft:#a9c9a0; /* success text on dark */
+  --color-text:      #F6EFE4;
+  --color-muted:     #BA9F8D;
+  --color-faint:     #7d6a5d;
 }
 
+/* Wire the brand tokens into Tailwind v4 so bg-gold / text-muted / border-border
+   utilities work, replacing the most-repeated inline bg-[#hex] / text-[#hex]. */
 @theme inline {
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans:    var(--font-body), system-ui, sans-serif;
+  --font-display: var(--font-display), 'Playfair Display', Georgia, serif;
+
+  --color-bg:        var(--color-bg);
+  --color-surface:   var(--color-surface);
+  --color-border:    var(--color-border);
+  --color-gold:      var(--color-gold);
+  --color-gold-soft: var(--color-gold-soft);
+  --color-gold-deep: var(--color-gold-deep);
+  --color-red:       var(--color-red);
+  --color-red-soft:  var(--color-red-soft);
+  --color-green:     var(--color-green);
+  --color-green-soft:var(--color-green-soft);
+  --color-text:      var(--color-text);
+  --color-muted:     var(--color-muted);
+  --color-faint:     var(--color-faint);
 }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
+
+/* Wordmark / display headings use Playfair Display. */
+.font-display { font-family: var(--font-display, 'Playfair Display', Georgia, serif); }
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -61,7 +86,29 @@ html { -webkit-text-size-adjust: 100%; }
   }
 }
 
+/* Keyboard focus ring — gold, only on keyboard nav (never on mouse click). */
 :focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+
+/* Comfortable touch targets (WCAG 2.5.5) — buttons and links never below 44px. */
+button,
+a[role='button'],
+input[type='button'],
+input[type='submit'] {
+  min-height: 44px;
+}
+
+/* ≥16px form fields stop iOS Safari from auto-zooming on focus. */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
