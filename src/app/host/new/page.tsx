@@ -97,6 +97,14 @@ export default function NewBasar() {
       return setError(error?.message ?? data?.error ?? 'Kunne ikke opprette basaren.')
     }
     setHostSecret(data.session_id, data.host_secret)
+    // Best-effort: if a Sunday Account host is signed in, tie this basar to them
+    // so it shows up under "Mine basarer". Anonymous create works regardless —
+    // the claim route 401s when not signed in and we simply ignore it.
+    void fetch('/api/host/basars/claim', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: data.session_id }),
+    }).catch(() => {})
     // Add wizard prizes (best effort — they can also be added from the panel).
     for (const p of prizes) {
       await supabase.rpc('add_prize', {

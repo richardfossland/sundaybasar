@@ -569,4 +569,74 @@ begin
     '16k: single update_prize overload');
 end $$;
 
+-- ============ 17. host ownership (migration 0004) ============
+-- The Sunday Account host dashboard ties a basar to its arrangør via the
+-- nullable basar.sessions.host_user_id. Anonymous create must keep host_user_id
+-- null; only the service-role host API stamps it; delete cascades to children.
+do $$
+declare r jsonb; sid uuid; hsec text; pid uuid; me uuid := gen_random_uuid();
+begin
+  -- 17a. the owner column exists, is uuid, and is NULLABLE.
+  perform pg_temp.assert_eq(
+    (select count(*)::int from information_schema.columns
+       where table_schema='basar' and table_name='sessions'
+         and column_name='host_user_id' and data_type='uuid'
+         and is_nullable='YES'), 1,
+    '17a: host_user_id is a nullable uuid column');
+
+  -- 17b. the owner lookup index exists (dashboard query).
+  perform pg_temp.assert_true(
+    (select count(*) from pg_indexes
+       where schemaname='basar' and indexname='sessions_host_user_idx') = 1,
+    '17b: sessions_host_user_idx exists');
+
+  -- 17c. anon/authenticated cannot WRITE sessions (owner column included).
+  perform pg_temp.assert_true(not has_table_privilege('anon','basar.sessions','update'),
+    '17c: anon cannot update sessions (owner not anon-writable)');
+  perform pg_temp.assert_true(not has_table_privilege('authenticated','basar.sessions','update'),
+    '17c: authenticated cannot update sessions');
+  perform pg_temp.assert_true(has_table_privilege('service_role','basar.sessions','update'),
+    '17c: service_role can update sessions (host API stamps owner)');
+
+  -- 17d. anonymous create (the RPC) leaves host_user_id NULL.
+  r := basar.create_session('h','gratis','klassisk',null,null,10,3);
+  sid := (r->>'session_id')::uuid; hsec := r->>'host_secret';
+  perform pg_temp.assert_true(
+    (select host_user_id from basar.sessions where id=sid) is null,
+    '17d: anonymous create_session leaves host_user_id null');
+
+  -- 17e. service-role stamp (what the claim route does) sets the owner once.
+  update basar.sessions set host_user_id = me where id = sid and host_user_id is null;
+  perform pg_temp.assert_true(
+    (select host_user_id from basar.sessions where id=sid) = me,
+    '17e: owner stamp sets host_user_id');
+
+  -- 17f. by-owner list query returns this basar (and not other owners').
+  perform pg_temp.assert_eq(
+    (select count(*)::int from basar.sessions where host_user_id = me and id = sid),
+    1, '17f: by-owner query finds the stamped basar');
+  perform pg_temp.assert_eq(
+    (select count(*)::int from basar.sessions where host_user_id = gen_random_uuid()),
+    0, '17f: by-owner query returns nothing for a different owner');
+
+  -- 17g. owner-gated DELETE removes the session AND cascades to children.
+  --      (gratis create + a player → players/lots/host_secrets all exist.)
+  r := basar.join_session((select code from basar.sessions where id=sid), 'Ola');
+  pid := (r->>'player_id')::uuid;
+  perform pg_temp.assert_true((select count(*) from basar.players where session_id=sid) > 0,
+    '17g: a player exists before delete');
+  perform pg_temp.assert_true((select count(*) from basar.lots where session_id=sid) > 0,
+    '17g: lots exist before delete (gratis auto-allocation)');
+  -- service-role delete, owner-gated exactly like deleteBasarForOwner.
+  delete from basar.sessions where id = sid and host_user_id = me;
+  perform pg_temp.assert_eq((select count(*)::int from basar.sessions where id=sid), 0,
+    '17g: session row deleted');
+  perform pg_temp.assert_eq((select count(*)::int from basar.players where session_id=sid), 0,
+    '17g: players cascade-deleted');
+  perform pg_temp.assert_eq((select count(*)::int from basar.lots where session_id=sid), 0,
+    '17g: lots cascade-deleted');
+  perform pg_temp.assert_eq((select count(*)::int from basar.host_secrets where session_id=sid), 0,
+    '17g: host_secret cascade-deleted');
+end $$;
+
 do $$ begin raise notice 'ALL GAME-LOGIC TESTS PASSED'; end $$;

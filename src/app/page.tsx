@@ -92,6 +92,14 @@ function LandingInner() {
             Skal du styre basaren? Start en ny her
           </Link>
         </div>
+        <div className="mt-3 text-center">
+          <Link
+            href="/host"
+            className="text-xs text-[#7d6a5d] underline-offset-4 hover:underline"
+          >
+            Arrangør? Logg inn
+          </Link>
+        </div>
       </div>
     </main>
   )
