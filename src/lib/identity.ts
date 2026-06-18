@@ -10,6 +10,7 @@ const K = {
   secret: 'basar_secret',
   hostId: 'basar_host_id',
   hostSession: 'basar_host_session',
+  deviceId: 'basar_device_id',
 }
 
 const hostSecretKey = (sessionId: string) => `basar_host_secret_${sessionId}`
@@ -47,6 +48,20 @@ export function ensureHostId(): string {
   if (!id) {
     id = 'host_' + crypto.randomUUID()
     localStorage.setItem(K.hostId, id)
+  }
+  return id
+}
+
+/**
+ * Stable per-device token sent to join_session. Lets the server dedup re-joins
+ * (same device → resume the same player) so opening a new tab can't mint extra
+ * free årer. Survives across tabs because localStorage is shared per origin.
+ */
+export function ensureDeviceId(): string {
+  let id = localStorage.getItem(K.deviceId)
+  if (!id) {
+    id = 'dev_' + crypto.randomUUID()
+    localStorage.setItem(K.deviceId, id)
   }
   return id
 }

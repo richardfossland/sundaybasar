@@ -5,15 +5,16 @@ import Link from 'next/link'
 import { useSession } from '@/lib/useSession'
 import { getHostSecret } from '@/lib/identity'
 import { currentReveal, NumberRoller, WinnerCard } from '@/components/DrawDisplay'
+import { ErrorText } from '@/components/ErrorText'
 import type { Allocation, DrawLogEntry, Prize } from '@/types/game'
 
-const card = 'rounded-2xl border border-[#4D3023] bg-[#36211A] p-4'
+const card = 'rounded-2xl border border-border bg-surface p-4'
 const input =
-  'rounded-xl border border-[#4D3023] bg-[#251310] px-3 py-2.5 text-[#F6EFE4] placeholder:text-[#7d6a5d] w-full'
+  'rounded-xl border border-border bg-bg px-3 py-2.5 text-text placeholder:text-faint w-full'
 const primaryBtn =
-  'min-h-12 rounded-xl bg-[#F0B243] px-4 font-semibold text-[#251310] disabled:opacity-40'
-const ghostBtn = 'min-h-12 rounded-xl border border-[#4D3023] px-4 font-medium text-[#BA9F8D]'
-const dangerBtn = 'min-h-12 rounded-xl border border-[#C0503F] px-4 font-medium text-[#C0503F]'
+  'min-h-12 rounded-xl bg-gold px-4 font-semibold text-bg disabled:opacity-40'
+const ghostBtn = 'min-h-12 rounded-xl border border-border px-4 font-medium text-muted'
+const dangerBtn = 'min-h-12 rounded-xl border border-red px-4 font-medium text-red'
 
 type Tab = 'deltakere' | 'premier' | 'trekning' | 'innstillinger'
 
@@ -79,9 +80,9 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
     <main className="mx-auto flex min-h-screen max-w-lg flex-col px-4 py-6">
       <header className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-[#F0B243]">SundayBasar · vert</h1>
-          <p className="text-sm text-[#BA9F8D]">
-            Kode <span className="font-bold tracking-widest text-[#F6EFE4]">{session.code}</span>
+          <h1 className="text-xl font-semibold text-gold">SundayBasar · vert</h1>
+          <p className="text-sm text-muted">
+            Kode <span className="font-bold tracking-widest text-text">{session.code}</span>
             {' · '}
             {session.trekning === 'runder' && <>runde {session.current_round} · </>}
             {roundLots.length} årer
@@ -91,23 +92,23 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
         <Link
           href={`/host/${sessionId}/projector`}
           target="_blank"
-          className="rounded-xl border border-[#4D3023] px-3 py-2 text-sm text-[#BA9F8D]"
+          className="rounded-xl border border-border px-3 py-2 text-sm text-muted"
         >
           Storskjerm ↗
         </Link>
       </header>
 
       {session.phase === 'ended' && (
-        <p className={`${card} mb-4 text-center text-[#BA9F8D]`}>Basaren er avsluttet.</p>
+        <p className={`${card} mb-4 text-center text-muted`}>Basaren er avsluttet.</p>
       )}
 
-      <nav className="mb-4 flex rounded-xl border border-[#4D3023] bg-[#36211A] p-1">
+      <nav className="mb-4 flex rounded-xl border border-border bg-surface p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`min-h-11 flex-1 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.id ? 'bg-[#F0B243] text-[#251310]' : 'text-[#BA9F8D]'
+              tab === t.id ? 'bg-gold text-bg' : 'text-muted'
             }`}
           >
             {t.label}
@@ -115,13 +116,9 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
         ))}
       </nav>
 
-      {error && (
-        <p className="mb-3 rounded-xl border border-[#C0503F] bg-[#3a1d18] px-4 py-2.5 text-sm text-[#f0a99f]">
-          {error}
-        </p>
-      )}
+      <ErrorText className="mb-3">{error}</ErrorText>
       {notice && (
-        <p className="mb-3 rounded-xl border border-[#6B9460] bg-[#1e2a1a] px-4 py-2.5 text-sm text-[#a9c9a0]">
+        <p className="mb-3 rounded-xl border border-green bg-[#1e2a1a] px-4 py-2.5 text-sm text-green-soft">
           {notice}
         </p>
       )}
@@ -152,7 +149,7 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center px-8 text-center text-[#BA9F8D]">
+    <main className="flex min-h-screen items-center justify-center px-8 text-center text-muted">
       <p>{children}</p>
     </main>
   )
@@ -250,9 +247,9 @@ function ParticipantsTab({
       </div>
 
       {players.length === 0 && (
-        <p className={`${card} text-center text-sm text-[#BA9F8D]`}>
+        <p className={`${card} text-center text-sm text-muted`}>
           Ingen deltakere ennå. Be folk gå til basar.sundaysuite.app og bruke koden{' '}
-          <span className="font-bold tracking-widest text-[#F6EFE4]">{session.code}</span>.
+          <span className="font-bold tracking-widest text-text">{session.code}</span>.
         </p>
       )}
 
@@ -261,11 +258,11 @@ function ParticipantsTab({
           <li key={p.id} className={card}>
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate font-medium text-[#F6EFE4]">
+                <p className="truncate font-medium text-text">
                   {p.name}
-                  {p.is_offline && <span className="ml-2 text-xs text-[#BA9F8D]">uten telefon</span>}
+                  {p.is_offline && <span className="ml-2 text-xs text-muted">uten telefon</span>}
                 </p>
-                <p className="text-sm text-[#BA9F8D]">
+                <p className="text-sm text-muted">
                   {lotsByPlayer.get(p.id) ?? 0} {kjop ? 'årer' : 'lodd'}
                 </p>
               </div>
@@ -281,22 +278,22 @@ function ParticipantsTab({
               </button>
             </div>
             {expanded === p.id && (
-              <div className="mt-3 flex flex-col gap-3 border-t border-[#4D3023] pt-3">
+              <div className="mt-3 flex flex-col gap-3 border-t border-border pt-3">
                 <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={() => setCount(Math.max(1, count - 1))}
                     aria-label="Færre"
-                    className="h-12 w-12 rounded-xl border border-[#4D3023] text-2xl text-[#F6EFE4]"
+                    className="h-12 w-12 rounded-xl border border-border text-2xl text-text"
                   >
                     −
                   </button>
-                  <span className="w-14 text-center text-3xl font-bold tabular-nums text-[#F6EFE4]">
+                  <span className="w-14 text-center text-3xl font-bold tabular-nums text-text">
                     {count}
                   </span>
                   <button
                     onClick={() => setCount(Math.min(200, count + 1))}
                     aria-label="Flere"
-                    className="h-12 w-12 rounded-xl border border-[#4D3023] text-2xl text-[#F6EFE4]"
+                    className="h-12 w-12 rounded-xl border border-border text-2xl text-text"
                   >
                     +
                   </button>
@@ -322,17 +319,17 @@ function ParticipantsTab({
           {allocations.map((a) => (
             <li
               key={a.id}
-              className={`flex items-center justify-between rounded-xl border border-[#4D3023] bg-[#251310] px-4 py-2.5 text-sm ${
+              className={`flex items-center justify-between rounded-xl border border-border bg-bg px-4 py-2.5 text-sm ${
                 a.revoked ? 'opacity-50' : ''
               }`}
             >
-              <span className="text-[#F6EFE4]">
+              <span className="text-text">
                 {nameOf(a.player_id)}: {a.count} stk (nr. {a.from_number}–{a.to_number})
                 {a.revoked && ' — angret'}
                 {session.trekning === 'runder' && ` · runde ${a.round}`}
               </span>
               {!a.revoked && (
-                <button onClick={() => revoke(a)} className="px-2 py-1 text-[#C0503F]">
+                <button onClick={() => revoke(a)} className="px-2 py-1 text-red">
                   Angre
                 </button>
               )}
@@ -490,16 +487,16 @@ function PrizesTab({
                       />
                     )}
                     <div className="min-w-0">
-                    <p className="truncate font-medium text-[#F6EFE4]">
-                      <span className="mr-2 text-[#BA9F8D]">{i + 1}.</span>
+                    <p className="truncate font-medium text-text">
+                      <span className="mr-2 text-muted">{i + 1}.</span>
                       {p.name}
                     </p>
                     {w ? (
-                      <p className="text-sm text-[#6B9460]">
+                      <p className="text-sm text-green">
                         Vunnet av {w.player_name} (åre {w.lot_number})
                       </p>
                     ) : (
-                      p.description && <p className="text-sm text-[#BA9F8D]">{p.description}</p>
+                      p.description && <p className="text-sm text-muted">{p.description}</p>
                     )}
                     </div>
                   </div>
@@ -518,7 +515,7 @@ function PrizesTab({
         })}
       </ol>
       {prizes.length === 0 && (
-        <p className="text-center text-sm text-[#BA9F8D]">Ingen premier ennå.</p>
+        <p className="text-center text-sm text-muted">Ingen premier ennå.</p>
       )}
     </div>
   )
@@ -541,7 +538,7 @@ function IconBtn({
       title={label}
       onClick={onClick}
       className={`h-11 w-11 rounded-lg border text-base ${
-        danger ? 'border-[#C0503F] text-[#C0503F]' : 'border-[#4D3023] text-[#BA9F8D]'
+        danger ? 'border-red text-red' : 'border-border text-muted'
       }`}
     >
       {children}
@@ -630,9 +627,9 @@ function DrawTab({
         <div className={`${card} flex flex-col gap-3`}>
           {nextPrize ? (
             <>
-              <p className="text-sm text-[#BA9F8D]">Neste premie:</p>
-              <p className="text-xl font-semibold text-[#F6EFE4]">{nextPrize.name}</p>
-              <p className="text-sm text-[#BA9F8D]">
+              <p className="text-sm text-muted">Neste premie:</p>
+              <p className="text-xl font-semibold text-text">{nextPrize.name}</p>
+              <p className="text-sm text-muted">
                 {poolNumbers.length} {session.tildeling === 'kjop' ? 'årer' : 'lodd'} i potten
                 {session.trekning === 'runder' && ` (runde ${session.current_round})`}
               </p>
@@ -644,11 +641,11 @@ function DrawTab({
                 Trekk «{nextPrize.name}»
               </button>
               {poolNumbers.length === 0 && (
-                <p className="text-sm text-[#C0503F]">Ingen årer i potten ennå.</p>
+                <p className="text-sm text-red">Ingen årer i potten ennå.</p>
               )}
             </>
           ) : (
-            <p className="text-center text-sm text-[#BA9F8D]">
+            <p className="text-center text-sm text-muted">
               {prizes.length === 0
                 ? 'Legg til premier under «Premier»-fanen først.'
                 : 'Alle premier er trukket! 🎉'}
@@ -660,15 +657,15 @@ function DrawTab({
       {/* Results so far */}
       {revealedDraws.length > 0 && (
         <div className={card}>
-          <h3 className="mb-2 text-sm font-medium text-[#BA9F8D]">Vinnere så langt</h3>
+          <h3 className="mb-2 text-sm font-medium text-muted">Vinnere så langt</h3>
           <ul className="flex flex-col gap-1.5">
             {[...revealedDraws].reverse().map((d) => (
               <li key={d.draw_id} className={`text-sm ${d.voided ? 'line-through opacity-50' : ''}`}>
-                <span className="text-[#F0B243]">{d.prize_name}</span>{' '}
-                <span className="text-[#F6EFE4]">
+                <span className="text-gold">{d.prize_name}</span>{' '}
+                <span className="text-text">
                   → {d.player_name} (åre {d.lot_number})
                 </span>
-                {d.voided && <span className="text-[#BA9F8D]"> · annullert</span>}
+                {d.voided && <span className="text-muted"> · annullert</span>}
               </li>
             ))}
           </ul>
@@ -679,7 +676,7 @@ function DrawTab({
         {log ? 'Skjul full logg' : 'Vis full logg (kontroll)'}
       </button>
       {log && (
-        <ul className="flex flex-col gap-1.5 rounded-xl border border-[#4D3023] bg-[#251310] p-4 text-xs text-[#BA9F8D]">
+        <ul className="flex flex-col gap-1.5 rounded-xl border border-border bg-bg p-4 text-xs text-muted">
           {log.map((d) => (
             <li key={d.draw_id}>
               {new Date(d.created_at).toLocaleTimeString('no')} — {d.prize_name}: åre {d.lot_number}{' '}
@@ -726,16 +723,16 @@ function SettingsTab({
     <div className="flex flex-col gap-3">
       {session.tildeling === 'kjop' && (
         <div className={`${card} flex flex-col gap-3`}>
-          <h3 className="text-sm font-medium text-[#BA9F8D]">Vipps</h3>
-          <label className="text-sm text-[#BA9F8D]">
+          <h3 className="text-sm font-medium text-muted">Vipps</h3>
+          <label className="text-sm text-muted">
             Vippsnummer
             <input value={vipps} onChange={(e) => setVipps(e.target.value)} className={`${input} mt-1`} />
           </label>
-          <label className="text-sm text-[#BA9F8D]">
+          <label className="text-sm text-muted">
             Vipps-lenke (QR på storskjerm)
             <input value={link} onChange={(e) => setLink(e.target.value)} className={`${input} mt-1`} />
           </label>
-          <label className="text-sm text-[#BA9F8D]">
+          <label className="text-sm text-muted">
             Pris per åre (kr)
             <input
               type="number"
@@ -752,11 +749,11 @@ function SettingsTab({
         </div>
       )}
 
-      <div className={`${card} flex flex-col gap-2 text-sm text-[#BA9F8D]`}>
+      <div className={`${card} flex flex-col gap-2 text-sm text-muted`}>
         <h3 className="font-medium">Lenker</h3>
         <p>
-          Deltakere: <span className="text-[#F6EFE4]">{appUrl || 'basar.sundaysuite.app'}</span> — kode{' '}
-          <span className="font-bold tracking-widest text-[#F6EFE4]">{session.code}</span>
+          Deltakere: <span className="text-text">{appUrl || 'basar.sundaysuite.app'}</span> — kode{' '}
+          <span className="font-bold tracking-widest text-text">{session.code}</span>
         </p>
         <button
           onClick={() => {
@@ -770,9 +767,9 @@ function SettingsTab({
       </div>
 
       <div className={`${card} flex flex-col gap-2`}>
-        <h3 className="text-sm font-medium text-[#BA9F8D]">Avslutt</h3>
+        <h3 className="text-sm font-medium text-muted">Avslutt</h3>
         {session.phase === 'ended' ? (
-          <p className="text-sm text-[#BA9F8D]">Basaren er avsluttet.</p>
+          <p className="text-sm text-muted">Basaren er avsluttet.</p>
         ) : confirmEnd ? (
           <div className="flex gap-2">
             <button
