@@ -1,5 +1,5 @@
 -- ============================================================================
--- SundayBasar — 0004: Sunday Account host ownership  (idempotent + additive)
+-- SundayBasar — 0005: Sunday Account host ownership  (idempotent + additive)
 --
 -- Ties a basar to the Sunday Account (arrangør) that created it, so a signed-in
 -- host can list + delete their own basars from the "Mine basarer" dashboard.
