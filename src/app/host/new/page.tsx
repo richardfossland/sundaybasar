@@ -6,19 +6,20 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ensureHostId, setHostSecret } from '@/lib/identity'
 import type { Tildeling, Trekning } from '@/types/game'
+import { ErrorText } from '@/components/ErrorText'
 
 interface PrizeDraft {
   name: string
   description: string
 }
 
-const card = 'rounded-2xl border border-[#4D3023] bg-[#36211A] p-5'
+const card = 'rounded-2xl border border-border bg-surface p-5'
 const input =
-  'rounded-xl border border-[#4D3023] bg-[#251310] px-4 py-3 text-[#F6EFE4] placeholder:text-[#7d6a5d] w-full'
+  'rounded-xl border border-border bg-bg px-4 py-3 text-text placeholder:text-faint w-full'
 const primaryBtn =
-  'min-h-12 rounded-xl bg-[#F0B243] px-4 py-3 font-semibold text-[#251310] transition-opacity disabled:opacity-50'
+  'min-h-12 rounded-xl bg-gold px-4 py-3 font-semibold text-bg transition-opacity disabled:opacity-50'
 const ghostBtn =
-  'min-h-12 rounded-xl border border-[#4D3023] px-4 py-3 font-medium text-[#BA9F8D]'
+  'min-h-12 rounded-xl border border-border px-4 py-3 font-medium text-muted'
 
 function Choice({
   selected,
@@ -37,18 +38,18 @@ function Choice({
     <button
       onClick={onSelect}
       className={`w-full rounded-xl border p-4 text-left transition-colors ${
-        selected ? 'border-[#F0B243] bg-[#3f2417]' : 'border-[#4D3023] bg-[#251310]'
+        selected ? 'border-gold bg-[#3f2417]' : 'border-border bg-bg'
       }`}
     >
       <div className="flex items-center gap-2">
-        <span className="font-semibold text-[#F6EFE4]">{title}</span>
+        <span className="font-semibold text-text">{title}</span>
         {badge && (
-          <span className="rounded-full bg-[#F0B243] px-2 py-0.5 text-xs font-semibold text-[#251310]">
+          <span className="rounded-full bg-gold px-2 py-0.5 text-xs font-semibold text-bg">
             {badge}
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm text-[#BA9F8D]">{children}</p>
+      <p className="mt-1 text-sm text-muted">{children}</p>
     </button>
   )
 }
@@ -111,15 +112,15 @@ export default function NewBasar() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 py-10">
       <div className="animate-fade-in">
-        <Link href="/" className="text-sm text-[#BA9F8D] underline">
+        <Link href="/" className="text-sm text-muted underline">
           ← Tilbake
         </Link>
-        <h1 className="mt-3 text-3xl font-semibold text-[#F0B243]">Ny basar</h1>
-        <p className="mt-1 mb-6 text-sm text-[#BA9F8D]">Steg {step} av 3</p>
+        <h1 className="mt-3 font-display text-3xl font-bold text-gold">Ny basar</h1>
+        <p className="mt-1 mb-6 text-sm text-muted">Steg {step} av 3</p>
 
         {step === 1 && (
           <div className={`${card} flex flex-col gap-3`}>
-            <h2 className="font-medium text-[#F6EFE4]">Hvordan får folk årer?</h2>
+            <h2 className="font-medium text-text">Hvordan får folk årer?</h2>
             <Choice
               selected={tildeling === 'kjop'}
               onSelect={() => setTildeling('kjop')}
@@ -140,7 +141,7 @@ export default function NewBasar() {
 
             {tildeling === 'kjop' ? (
               <div className="mt-2 flex flex-col gap-3">
-                <label className="text-sm text-[#BA9F8D]">
+                <label className="text-sm text-muted">
                   Vippsnummer (menighetens)
                   <input
                     value={vippsNumber}
@@ -150,7 +151,7 @@ export default function NewBasar() {
                     className={`${input} mt-1`}
                   />
                 </label>
-                <label className="text-sm text-[#BA9F8D]">
+                <label className="text-sm text-muted">
                   Pris per åre (kr)
                   <input
                     type="number"
@@ -161,7 +162,7 @@ export default function NewBasar() {
                     className={`${input} mt-1`}
                   />
                 </label>
-                <label className="text-sm text-[#BA9F8D]">
+                <label className="text-sm text-muted">
                   Vipps-lenke (valgfri — gir QR-kode på storskjermen)
                   <input
                     value={vippsLink}
@@ -172,7 +173,7 @@ export default function NewBasar() {
                 </label>
               </div>
             ) : (
-              <label className="mt-2 text-sm text-[#BA9F8D]">
+              <label className="mt-2 text-sm text-muted">
                 Lodd per deltaker
                 <input
                   type="number"
@@ -191,7 +192,7 @@ export default function NewBasar() {
 
         {step === 2 && (
           <div className={`${card} flex flex-col gap-3`}>
-            <h2 className="font-medium text-[#F6EFE4]">Hvordan trekkes vinnerne?</h2>
+            <h2 className="font-medium text-text">Hvordan trekkes vinnerne?</h2>
             <Choice
               selected={trekning === 'klassisk'}
               onSelect={() => setTrekning('klassisk')}
@@ -222,8 +223,8 @@ export default function NewBasar() {
 
         {step === 3 && (
           <div className={`${card} flex flex-col gap-3`}>
-            <h2 className="font-medium text-[#F6EFE4]">Premier</h2>
-            <p className="text-sm text-[#BA9F8D]">
+            <h2 className="font-medium text-text">Premier</h2>
+            <p className="text-sm text-muted">
               Legg inn premiene nå, eller hopp over og legg dem til underveis.
             </p>
             <div className="flex gap-2">
@@ -244,16 +245,16 @@ export default function NewBasar() {
                 {prizes.map((p, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between rounded-xl border border-[#4D3023] bg-[#251310] px-4 py-2.5"
+                    className="flex items-center justify-between rounded-xl border border-border bg-bg px-4 py-2.5"
                   >
                     <span>
-                      <span className="mr-2 text-[#BA9F8D]">{i + 1}.</span>
+                      <span className="mr-2 text-muted">{i + 1}.</span>
                       {p.name}
                     </span>
                     <button
                       onClick={() => setPrizes((cur) => cur.filter((_, j) => j !== i))}
                       aria-label={`Fjern ${p.name}`}
-                      className="px-2 py-1 text-[#C0503F]"
+                      className="px-2 py-1 text-red"
                     >
                       ✕
                     </button>
@@ -264,7 +265,7 @@ export default function NewBasar() {
           </div>
         )}
 
-        {error && <p className="mt-3 text-sm text-[#C0503F]">{error}</p>}
+        <ErrorText className="mt-3">{error}</ErrorText>
 
         <div className="mt-6 flex gap-3">
           {step > 1 && (

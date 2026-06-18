@@ -119,7 +119,7 @@ export function DrawReel({
     <div className="flex flex-col items-center gap-3">
       <p
         className={`${big ? 'text-2xl' : 'text-base'} ${
-          landed ? 'text-[#6B9460]' : 'animate-pulse-gold text-[#BA9F8D]'
+          landed ? 'text-green' : 'animate-pulse-gold text-muted'
         } font-medium`}
       >
         {label}
@@ -128,8 +128,8 @@ export function DrawReel({
         className={`${
           big ? 'h-52 w-52 text-8xl' : 'h-28 w-28 text-5xl'
         } relative flex items-center justify-center overflow-hidden rounded-full border-4 ${
-          landed ? 'border-[#6B9460] bg-[#1e2a1a]' : 'border-[#F0B243] bg-[#36211A]'
-        } font-bold tabular-nums ${landed ? 'animate-winner-pop text-[#F6EFE4]' : 'text-[#F0B243]'}`}
+          landed ? 'border-green bg-[#1e2a1a]' : 'border-gold bg-surface'
+        } font-bold tabular-nums ${landed ? 'animate-winner-pop text-text' : 'text-gold'}`}
         aria-live="polite"
         aria-label={winner === null ? 'Trekning pågår' : `Vinnernummer ${winner}`}
       >
@@ -200,12 +200,12 @@ export function WinnerCard({
 }) {
   return (
     <div
-      className={`animate-winner-pop flex flex-col items-center gap-2 rounded-3xl border-2 border-[#F0B243] bg-[#36211A] text-center ${
+      className={`animate-winner-pop flex flex-col items-center gap-2 rounded-3xl border-2 border-gold bg-surface text-center ${
         big ? 'px-14 py-10' : 'px-8 py-6'
       }`}
     >
       {isMe && (
-        <p className={`font-bold text-[#F0B243] ${big ? 'text-4xl' : 'text-2xl'}`}>DU VANT! 🎉</p>
+        <p className={`font-bold text-gold ${big ? 'text-4xl' : 'text-2xl'}`}>DU VANT! 🎉</p>
       )}
       {draw.prize_image_url && (
         // Public Supabase Storage URL; the column is http(s)-validated server-side.
@@ -216,11 +216,11 @@ export function WinnerCard({
           className={`mb-1 rounded-2xl object-cover ${big ? 'h-48 w-48' : 'h-24 w-24'}`}
         />
       )}
-      <p className={`text-[#BA9F8D] ${big ? 'text-2xl' : 'text-sm'}`}>{draw.prize_name}</p>
-      <p className={`font-bold text-[#F6EFE4] ${big ? 'text-6xl' : 'text-3xl'}`}>
+      <p className={`text-muted ${big ? 'text-2xl' : 'text-sm'}`}>{draw.prize_name}</p>
+      <p className={`font-bold text-text ${big ? 'text-6xl' : 'text-3xl'}`}>
         {draw.player_name}
       </p>
-      <p className={`text-[#F0B243] ${big ? 'text-3xl' : 'text-lg'} font-semibold tabular-nums`}>
+      <p className={`text-gold ${big ? 'text-3xl' : 'text-lg'} font-semibold tabular-nums`}>
         Åre nr. {draw.lot_number}
       </p>
     </div>
@@ -253,7 +253,7 @@ export function AudioToggle({
       type="button"
       onClick={() => onToggle(!on)}
       aria-pressed={on}
-      className="rounded-xl border border-[#4D3023] px-3 py-2 text-sm text-[#BA9F8D]"
+      className="rounded-xl border border-border px-3 py-2 text-sm text-muted"
     >
       {on ? '🔊 Lyd på' : '🔇 Lyd av'}
     </button>
