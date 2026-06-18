@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { getIdentity, setIdentity } from '@/lib/identity'
+import { getIdentity, setIdentity, ensureDeviceId } from '@/lib/identity'
 import { ErrorText } from '@/components/ErrorText'
 
 function LandingInner() {
@@ -31,6 +31,7 @@ function LandingInner() {
     const { data, error } = await supabase.rpc('join_session', {
       p_code: code.trim().toUpperCase(),
       p_name: name.trim(),
+      p_device: ensureDeviceId(),
     })
     setBusy(false)
     if (error) return setError(error.message)

@@ -111,6 +111,33 @@ begin
   perform pg_temp.assert_eq((select max(number) from lots where session_id=sid)::int, 7, '3: gratis lots end at 7');
 end $$;
 
+-- ============ 3c: device dedup — re-join from a new tab must NOT mint extra lots ===
+do $$
+declare r jsonb; sid uuid; code text; pA uuid; pB uuid;
+begin
+  r := basar.create_session('host-3c','gratis','klassisk',null,null,10,7);
+  sid := (r->>'session_id')::uuid; code := r->>'code';
+
+  -- first join from device "dev-A": new player + 7 free lots
+  r := basar.join_session(code,'Ola','dev-A');
+  perform pg_temp.assert_ok(r, '3c: device join ok');
+  pA := (r->>'player_id')::uuid;
+  perform pg_temp.assert_eq((select count(*) from lots where session_id=sid)::int, 7, '3c: first device join -> 7 lots');
+
+  -- SAME device joins again (new tab) -> resume same player, NO new lots
+  r := basar.join_session(code,'Ola','dev-A');
+  perform pg_temp.assert_true((r->>'resumed')::bool, '3c: same device -> resumed');
+  perform pg_temp.assert_true((r->>'player_id')::uuid = pA, '3c: same device -> same player');
+  perform pg_temp.assert_eq((select count(*) from lots where session_id=sid)::int, 7, '3c: re-join mints NO extra lots');
+  perform pg_temp.assert_eq((select player_count from sessions where id=sid), 1, '3c: player_count not double-counted');
+
+  -- a DIFFERENT device is a genuine new participant -> new player + its own 7 lots
+  r := basar.join_session(code,'Kari','dev-B');
+  pB := (r->>'player_id')::uuid;
+  perform pg_temp.assert_true(pB <> pA, '3c: different device -> different player');
+  perform pg_temp.assert_eq((select count(*) from lots where session_id=sid)::int, 14, '3c: second device -> +7 lots');
+end $$;
+
 -- ============ 4. Allocation numbering & guards ============
 do $$
 declare r jsonb; sid uuid; hsec text; code text; p1 uuid; p2 uuid; stranger uuid;
