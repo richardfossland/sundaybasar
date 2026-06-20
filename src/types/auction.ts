@@ -25,6 +25,12 @@ export interface AuctionItem {
   leader_name: string | null
   has_reserve: boolean
   reserve_met: boolean
+  dutch_start: number | null
+  dutch_floor: number | null
+  dutch_step: number | null
+  dutch_interval_seconds: number | null
+  dutch_started_at: string | null
+  live_stage: 'first' | 'second' | null
   winner_player_id: string | null
   winner_name: string | null
   winning_amount: number | null
@@ -80,4 +86,21 @@ export function minNextBid(item: AuctionItem): number {
   return item.current_amount != null
     ? Number(item.current_amount) + Number(item.min_increment)
     : Number(item.start_price)
+}
+
+/** Current dropped price of a dutch item at a given clock (mirrors dutch_take). */
+export function currentDutchPrice(item: AuctionItem, nowMs: number): number {
+  const { dutch_start, dutch_floor, dutch_step, dutch_interval_seconds, dutch_started_at } = item
+  if (dutch_start == null || dutch_floor == null || dutch_step == null || !dutch_interval_seconds) {
+    return Number(item.current_amount ?? item.start_price)
+  }
+  if (!dutch_started_at) return Number(dutch_start)
+  const elapsed = Math.max(0, (nowMs - new Date(dutch_started_at).getTime()) / 1000)
+  const steps = Math.floor(elapsed / dutch_interval_seconds)
+  return Math.max(Number(dutch_floor), Number(dutch_start) - steps * Number(dutch_step))
+}
+
+export const STAGE_LABEL: Record<'first' | 'second', string> = {
+  first: 'Første gang!',
+  second: 'Andre gang!',
 }

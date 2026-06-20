@@ -6,7 +6,8 @@ import { useAuction } from '@/lib/useAuction'
 import { getIdentity } from '@/lib/identity'
 import { Thermometer } from '@/components/Thermometer'
 import { ErrorText } from '@/components/ErrorText'
-import { CATEGORY_EMOJI, FORMAT_LABELS, kr, minNextBid } from '@/types/auction'
+import { CATEGORY_EMOJI, FORMAT_LABELS, STAGE_LABEL, currentDutchPrice, kr, minNextBid } from '@/types/auction'
+import { useNow } from '@/lib/useNow'
 import type { AuctionItem } from '@/types/auction'
 
 type Supa = ReturnType<typeof useAuction>['supabase']
@@ -130,6 +131,7 @@ function ItemCard({
   open: boolean
   onDone: () => void
 }) {
+  const now = useNow()
   const leading = item.current_leader_player_id === playerId
   const price = item.current_amount != null ? Number(item.current_amount) : Number(item.start_price)
 
@@ -155,8 +157,13 @@ function ItemCard({
         </p>
       ) : item.status === 'passed' ? (
         <p className="mt-3 text-sm text-faint">Ikke solgt.</p>
+      ) : item.format === 'hollandsk' ? (
+        <DutchPanel item={item} playerId={playerId} secret={secret} supabase={supabase} open={open} onDone={onDone} now={now} />
       ) : (
         <>
+          {item.live_stage && (
+            <p className="mt-2 text-center text-lg font-semibold text-gold">{STAGE_LABEL[item.live_stage]}</p>
+          )}
           <div className="mt-3 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-gold">{kr(price)}</span>
             {leading ? (
@@ -246,6 +253,61 @@ function BidPanel({
         <button className={ghostBtn} onClick={buyNow} disabled={busy}>
           Kjøp nå for {kr(item.buy_now_price)}
         </button>
+      )}
+      {err && <ErrorText>{err}</ErrorText>}
+    </div>
+  )
+}
+
+function DutchPanel({
+  item,
+  playerId,
+  secret,
+  supabase,
+  open,
+  onDone,
+  now,
+}: {
+  item: AuctionItem
+  playerId: string
+  secret: string
+  supabase: Supa
+  open: boolean
+  onDone: () => void
+  now: number
+}) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const started = !!item.dutch_started_at
+  const price = currentDutchPrice(item, now)
+  const atFloor = item.dutch_floor != null && price <= Number(item.dutch_floor)
+
+  async function take() {
+    setBusy(true)
+    setErr('')
+    const { data, error } = await supabase.rpc('dutch_take', {
+      p_player_id: playerId,
+      p_secret: secret,
+      p_item_id: item.id,
+    })
+    setBusy(false)
+    if (error) return setErr(error.message)
+    if (!data?.ok) return setErr(data.error ?? 'Kunne ikke kjøpe.')
+    onDone()
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-3xl font-bold tabular-nums text-gold">{kr(price)}</span>
+        <span className="text-xs text-faint">{atFloor ? 'gulvpris' : started ? 'synker…' : ''}</span>
+      </div>
+      {open && started ? (
+        <button className={primaryBtn} onClick={take} disabled={busy}>
+          KJØP NÅ for {kr(price)}
+        </button>
+      ) : (
+        <p className="text-sm text-muted">{started ? 'Auksjonen er avsluttet.' : 'Prisfallet starter snart…'}</p>
       )}
       {err && <ErrorText>{err}</ErrorText>}
     </div>

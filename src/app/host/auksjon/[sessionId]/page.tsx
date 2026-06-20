@@ -10,8 +10,11 @@ import {
   CATEGORY_EMOJI,
   CATEGORY_LABELS,
   FORMAT_LABELS,
+  STAGE_LABEL,
+  currentDutchPrice,
   kr,
 } from '@/types/auction'
+import { useNow } from '@/lib/useNow'
 import type {
   AuctionCategory,
   AuctionFormat,
@@ -168,6 +171,10 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
   const [donor, setDonor] = useState('')
   const [reserve, setReserve] = useState('')
   const [buyNow, setBuyNow] = useState('')
+  const [dutchStart, setDutchStart] = useState('1000')
+  const [dutchFloor, setDutchFloor] = useState('200')
+  const [dutchStep, setDutchStep] = useState('100')
+  const [dutchInterval, setDutchInterval] = useState('15')
   const [busy, setBusy] = useState(false)
 
   function reset() {
@@ -180,6 +187,10 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
     setDonor('')
     setReserve('')
     setBuyNow('')
+    setDutchStart('1000')
+    setDutchFloor('200')
+    setDutchStep('100')
+    setDutchInterval('15')
   }
 
   async function add() {
@@ -194,6 +205,11 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
       p_donor_name: donor.trim() || null,
       p_reserve_price: reserve.trim() ? Number(reserve) : null,
       p_buy_now_price: buyNow.trim() ? Number(buyNow) : null,
+      p_dutch_start: format === 'hollandsk' && dutchStart.trim() ? Number(dutchStart) : null,
+      p_dutch_floor: format === 'hollandsk' && dutchFloor.trim() ? Number(dutchFloor) : null,
+      p_dutch_step: format === 'hollandsk' && dutchStep.trim() ? Number(dutchStep) : null,
+      p_dutch_interval_seconds:
+        format === 'hollandsk' && dutchInterval.trim() ? Number(dutchInterval) : null,
     })
     setBusy(false)
     if (r?.ok) {
@@ -246,6 +262,7 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
               >
                 <option value="stille">Stille (tidsbasert)</option>
                 <option value="live">Live (auksjonarius)</option>
+                <option value="hollandsk">Hollandsk (synkende pris)</option>
               </select>
             </label>
           </div>
@@ -295,6 +312,33 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
               />
             </label>
           </div>
+          {format === 'hollandsk' && (
+            <div className="rounded-xl border border-border bg-bg p-3">
+              <p className="mb-2 text-sm text-muted">Synkende pris (hollandsk)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  Startpris (kr)
+                  <input className={input} inputMode="numeric" value={dutchStart}
+                    onChange={(e) => setDutchStart(e.target.value.replace(/[^0-9]/g, ''))} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  Gulvpris (kr)
+                  <input className={input} inputMode="numeric" value={dutchFloor}
+                    onChange={(e) => setDutchFloor(e.target.value.replace(/[^0-9]/g, ''))} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  Prisfall pr. steg (kr)
+                  <input className={input} inputMode="numeric" value={dutchStep}
+                    onChange={(e) => setDutchStep(e.target.value.replace(/[^0-9]/g, ''))} />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-muted">
+                  Intervall (sek)
+                  <input className={input} inputMode="numeric" value={dutchInterval}
+                    onChange={(e) => setDutchInterval(e.target.value.replace(/[^0-9]/g, ''))} />
+                </label>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
             <button className={primaryBtn} onClick={add} disabled={busy || !title.trim()}>
               {busy ? 'Lagrer…' : 'Legg til'}
@@ -323,7 +367,15 @@ function ObjekterTab({ items, call }: { items: AuctionItem[]; call: CallFn }) {
 }
 
 function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
-  const price = item.current_amount != null ? Number(item.current_amount) : Number(item.start_price)
+  const now = useNow()
+  const isDutch = item.format === 'hollandsk'
+  const isLive = item.format === 'live'
+  const started = !isDutch || !!item.dutch_started_at
+  const price = isDutch
+    ? currentDutchPrice(item, now)
+    : item.current_amount != null
+      ? Number(item.current_amount)
+      : Number(item.start_price)
   return (
     <div className={card}>
       <div className="flex items-start justify-between gap-2">
@@ -341,14 +393,29 @@ function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
 
       {item.status === 'active' && (
         <div className="mt-2 text-sm text-muted">
-          Ledende bud: <span className="font-semibold text-gold">{kr(price)}</span>
-          {item.leader_name && <> · {item.leader_name}</>}
-          {item.has_reserve && (
-            <span className={item.reserve_met ? 'text-green' : 'text-red-soft'}>
-              {' '}· {item.reserve_met ? 'reserve nådd' : 'reserve ikke nådd'}
-            </span>
+          {isDutch ? (
+            started ? (
+              <>
+                Synkende pris: <span className="font-semibold text-gold">{kr(price)}</span>
+              </>
+            ) : (
+              <>Klar — trykk «Start synkende pris»</>
+            )
+          ) : (
+            <>
+              Ledende bud: <span className="font-semibold text-gold">{kr(price)}</span>
+              {item.leader_name && <> · {item.leader_name}</>}
+              {item.has_reserve && (
+                <span className={item.reserve_met ? 'text-green' : 'text-red-soft'}>
+                  {' '}· {item.reserve_met ? 'reserve nådd' : 'reserve ikke nådd'}
+                </span>
+              )}
+              {item.buy_now_price != null && <> · kjøp-nå {kr(item.buy_now_price)}</>}
+              {isLive && item.live_stage && (
+                <span className="ml-1 font-semibold text-gold">· {STAGE_LABEL[item.live_stage]}</span>
+              )}
+            </>
           )}
-          {item.buy_now_price != null && <> · kjøp-nå {kr(item.buy_now_price)}</>}
         </div>
       )}
       {item.status === 'sold' && (
@@ -359,20 +426,35 @@ function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {item.status === 'draft' && (
-          <button className={primaryBtn} onClick={() => call('activate_item', { p_item_id: item.id })}>
-            Aktiver
+        {item.status === 'draft' &&
+          (isDutch ? (
+            <button className={primaryBtn} onClick={() => call('start_dutch', { p_item_id: item.id })}>
+              Start synkende pris
+            </button>
+          ) : (
+            <button className={primaryBtn} onClick={() => call('activate_item', { p_item_id: item.id })}>
+              Aktiver
+            </button>
+          ))}
+        {item.status === 'active' && !isDutch && (
+          <button className={primaryBtn} onClick={() => call('mark_sold', { p_item_id: item.id })}>
+            Marker solgt
           </button>
         )}
-        {item.status === 'active' && (
+        {item.status === 'active' && isLive && (
           <>
-            <button className={primaryBtn} onClick={() => call('mark_sold', { p_item_id: item.id })}>
-              Marker solgt
+            <button className={ghostBtn} onClick={() => call('call_stage', { p_item_id: item.id, p_stage: 'first' })}>
+              Første gang
             </button>
-            <button className={ghostBtn} onClick={() => call('pass_item', { p_item_id: item.id })}>
-              Pass
+            <button className={ghostBtn} onClick={() => call('call_stage', { p_item_id: item.id, p_stage: 'second' })}>
+              Andre gang
             </button>
           </>
+        )}
+        {item.status === 'active' && (
+          <button className={ghostBtn} onClick={() => call('pass_item', { p_item_id: item.id })}>
+            Pass
+          </button>
         )}
         {item.status !== 'sold' && (
           <button
