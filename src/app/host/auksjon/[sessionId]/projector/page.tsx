@@ -3,13 +3,26 @@
 import { use, useEffect, useMemo, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuction } from '@/lib/useAuction'
+import { useNow } from '@/lib/useNow'
 import { Confetti } from '@/components/DrawDisplay'
 import { Thermometer } from '@/components/Thermometer'
-import { CATEGORY_EMOJI, kr } from '@/types/auction'
+import { armAudio, playFanfare, setMuted } from '@/lib/drawSound'
+import { CATEGORY_EMOJI, STAGE_LABEL, currentDutchPrice, kr } from '@/types/auction'
 
 export default function AuctionProjector({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
   const { session, items, goalAmount, raisedTotal, loaded, missing } = useAuction(sessionId)
+  const now = useNow()
+
+  const [sound, setSound] = useState(false)
+  const soundRef = useRef(false)
+  function toggleSound() {
+    const next = !sound
+    setSound(next)
+    soundRef.current = next
+    setMuted(!next)
+    if (next) armAudio()
+  }
 
   const [origin, setOrigin] = useState('')
   useEffect(() => {
@@ -24,6 +37,7 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
   useEffect(() => {
     if (soldCount > prevSold.current) {
       setCelebrate(true)
+      if (soundRef.current) playFanfare()
       const t = setTimeout(() => setCelebrate(false), 5000)
       prevSold.current = soldCount
       return () => clearTimeout(t)
@@ -39,8 +53,14 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
   const joinUrl = origin ? `${origin}/?kode=${session.code}` : ''
 
   return (
-    <main className="min-h-screen bg-bg px-10 py-8 text-text">
+    <main className="relative min-h-screen bg-bg px-10 py-8 text-text">
       {celebrate && <Confetti count={120} />}
+      <button
+        onClick={toggleSound}
+        className="absolute right-6 top-6 rounded-full border border-border px-4 py-2 text-sm text-muted"
+      >
+        {sound ? '🔊 Lyd på' : '🔇 Lyd av'}
+      </button>
 
       <div className="grid grid-cols-[1fr_auto] gap-8">
         <div>
@@ -66,16 +86,27 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
         ) : (
           <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">
             {active.map((it) => {
-              const price = it.current_amount != null ? Number(it.current_amount) : Number(it.start_price)
+              const isDutch = it.format === 'hollandsk'
+              const price = isDutch
+                ? currentDutchPrice(it, now)
+                : it.current_amount != null
+                  ? Number(it.current_amount)
+                  : Number(it.start_price)
               return (
                 <div key={it.id} className="rounded-3xl border-2 border-gold bg-surface p-6">
                   <p className="text-3xl font-semibold text-text">
                     {CATEGORY_EMOJI[it.category]} {it.title}
                   </p>
                   <p className="mt-3 text-5xl font-bold tabular-nums text-gold">{kr(price)}</p>
-                  <p className="mt-2 text-xl text-muted">
-                    {it.leader_name ? `Ledes av ${it.leader_name}` : 'Ingen bud ennå'}
-                  </p>
+                  {isDutch ? (
+                    <p className="mt-2 text-xl text-muted">{it.dutch_started_at ? 'Synker ↓' : 'Klar'}</p>
+                  ) : it.live_stage ? (
+                    <p className="mt-2 text-2xl font-bold text-gold">{STAGE_LABEL[it.live_stage]}</p>
+                  ) : (
+                    <p className="mt-2 text-xl text-muted">
+                      {it.leader_name ? `Ledes av ${it.leader_name}` : 'Ingen bud ennå'}
+                    </p>
+                  )}
                 </div>
               )
             })}

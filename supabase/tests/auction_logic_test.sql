@@ -333,10 +333,77 @@ declare r jsonb; sid uuid; hsec text; code text; p1 uuid; s1 text; itid uuid;
 begin
   r := basar.create_auction_session('host-a13'); sid := (r->>'session_id')::uuid; hsec := r->>'host_secret'; code := r->>'code';
   r := basar.join_session(code,'Ola'); p1 := (r->>'player_id')::uuid; s1 := r->>'secret';
-  itid := ((basar.create_auction_item(sid,hsec,'Hollandsk','','gjenstand','hollandsk',100,10))->>'item_id')::uuid;
+  itid := ((basar.create_auction_item(sid,hsec,'Hollandsk','','gjenstand','hollandsk',0,10,
+            null,null,null,null,null,10, 1000,200,100,10))->>'item_id')::uuid;
   perform basar.activate_item(sid,hsec,itid);
   perform pg_temp.assert_err(basar.place_bid(p1,s1,itid,100), 'Bruk «Kjøp nå» på hollandsk auksjon',
     'A13: ascending bid rejected on dutch item');
+end $$;
+
+-- ============ A14. Hollandsk (descending price) lifecycle ============
+do $$
+declare r jsonb; sid uuid; hsec text; code text; p1 uuid; s1 text; p2 uuid; s2 text; itid uuid;
+begin
+  r := basar.create_auction_session('host-a14'); sid := (r->>'session_id')::uuid; hsec := r->>'host_secret'; code := r->>'code';
+  r := basar.join_session(code,'Ola'); p1 := (r->>'player_id')::uuid; s1 := r->>'secret';
+  r := basar.join_session(code,'Kari'); p2 := (r->>'player_id')::uuid; s2 := r->>'secret';
+
+  -- create requires a valid descending curve
+  perform pg_temp.assert_err(basar.create_auction_item(sid,hsec,'X','','gjenstand','hollandsk',0,10),
+    'Hollandsk auksjon krever start/gulv/fall/intervall', 'A14: hollandsk requires dutch params');
+  perform pg_temp.assert_err(basar.create_auction_item(sid,hsec,'X','','gjenstand','hollandsk',0,10,
+    null,null,null,null,null,10, 200,500,100,10), 'Startpris må være større enn gulvpris', 'A14: start must exceed floor');
+
+  -- start 1000, floor 200, step 100, interval 10s
+  itid := ((basar.create_auction_item(sid,hsec,'Sykkel','','gjenstand','hollandsk',0,10,
+            null,null,null,null,null,10, 1000,200,100,10))->>'item_id')::uuid;
+  perform basar.activate_item(sid,hsec,itid);  -- active, but the descent hasn't been started
+  perform pg_temp.assert_err(basar.dutch_take(p1,s1,itid), 'Prisfallet har ikke startet', 'A14: take before start (active, no descent)');
+
+  r := basar.start_dutch(sid,hsec,itid);
+  perform pg_temp.assert_ok(r, 'A14: start_dutch');
+  perform pg_temp.assert_num((r->>'start_price')::numeric, 1000, 'A14: start price 1000');
+  perform pg_temp.assert_true((select status from auction_items where id=itid) = 'active', 'A14: active after start');
+
+  -- simulate 25s elapsed -> floor(25/10)=2 steps -> 1000 - 200 = 800
+  update basar.auction_items set dutch_started_at = now() - interval '25 seconds' where id = itid;
+  perform pg_temp.assert_err(basar.place_bid(p1,s1,itid,900), 'Bruk «Kjøp nå» på hollandsk auksjon', 'A14: ascending bid still rejected');
+  r := basar.dutch_take(p1,s1,itid);
+  perform pg_temp.assert_ok(r, 'A14: dutch_take');
+  perform pg_temp.assert_num((r->>'amount')::numeric, 800, 'A14: dropped price 800 (2 steps)');
+  perform pg_temp.assert_true((select status from auction_items where id=itid) = 'sold', 'A14: sold');
+  perform pg_temp.assert_true((select winner_player_id from auction_items where id=itid) = p1, 'A14: winner p1');
+  perform pg_temp.assert_eq((select count(*) from auction_settlements where item_id=itid)::int, 1, 'A14: settlement created');
+  perform pg_temp.assert_err(basar.dutch_take(p2,s2,itid), 'Objektet tar ikke imot bud', 'A14: second taker rejected (first-click-wins)');
+
+  -- price never drops below the floor
+  itid := ((basar.create_auction_item(sid,hsec,'Gulv','','gjenstand','hollandsk',0,10,
+            null,null,null,null,null,10, 1000,200,100,10))->>'item_id')::uuid;
+  perform basar.start_dutch(sid,hsec,itid);
+  update basar.auction_items set dutch_started_at = now() - interval '1000 seconds' where id = itid;
+  perform pg_temp.assert_num(((basar.dutch_take(p2,s2,itid))->>'amount')::numeric, 200, 'A14: floored at dutch_floor 200');
+end $$;
+
+-- ============ A15. Live call_stage (Første/Andre gang) ============
+do $$
+declare r jsonb; sid uuid; hsec text; live uuid; stille uuid; st jsonb;
+begin
+  r := basar.create_auction_session('host-a15'); sid := (r->>'session_id')::uuid; hsec := r->>'host_secret';
+  live := ((basar.create_auction_item(sid,hsec,'Maleri','','opplevelse','live',100,10))->>'item_id')::uuid;
+  perform pg_temp.assert_err(basar.call_stage(sid,hsec,live,'first'), 'Objektet er ikke aktivt', 'A15: stage before active');
+  perform basar.activate_item(sid,hsec,live);
+  perform pg_temp.assert_err(basar.call_stage(sid,hsec,live,'tull'), 'Ugyldig stadium', 'A15: bad stage');
+  perform pg_temp.assert_ok(basar.call_stage(sid,hsec,live,'first'), 'A15: call first');
+  perform pg_temp.assert_true((select live_stage from auction_items where id=live) = 'first', 'A15: live_stage=first');
+  perform pg_temp.assert_ok(basar.call_stage(sid,hsec,live,'second'), 'A15: call second');
+  st := basar.get_auction_state(sid);
+  perform pg_temp.assert_true((st->'items'->0->>'live_stage') = 'second', 'A15: live_stage surfaced in state');
+  perform pg_temp.assert_ok(basar.call_stage(sid,hsec,live,'none'), 'A15: clear stage');
+  perform pg_temp.assert_true((select live_stage from auction_items where id=live) is null, 'A15: stage cleared');
+
+  stille := ((basar.create_auction_item(sid,hsec,'Stille','','gjenstand','stille',100,10))->>'item_id')::uuid;
+  perform basar.activate_item(sid,hsec,stille);
+  perform pg_temp.assert_err(basar.call_stage(sid,hsec,stille,'first'), 'Ikke en live-auksjon', 'A15: stage on non-live rejected');
 end $$;
 
 do $$ begin raise notice 'ALL AUCTION TESTS PASSED'; end $$;
