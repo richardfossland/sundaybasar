@@ -127,6 +127,15 @@ export default function NewBasar() {
         <p className="mt-1 mb-6 text-sm text-muted">Steg {step} av 3</p>
 
         {step === 1 && (
+          <Link
+            href="/host/auksjon/new"
+            className="mb-4 block rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted"
+          >
+            🔨 Skal dere ha <span className="text-gold">auksjon</span> i stedet? Lag en her →
+          </Link>
+        )}
+
+        {step === 1 && (
           <div className={`${card} flex flex-col gap-3`}>
             <h2 className="font-medium text-text">Hvordan får folk årer?</h2>
             <Choice

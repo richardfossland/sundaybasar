@@ -25,4 +25,10 @@ docker cp supabase/tests/basar_logic_test.sql "$NAME:/tmp/basar_logic_test.sql" 
 OUT=$(docker exec "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q -f /tmp/basar_logic_test.sql 2>&1)
 echo "$OUT" | grep -E "PASS|FAIL" || true
 echo "$OUT" | grep -q "ALL GAME-LOGIC TESTS PASSED" || { echo "TESTS FAILED"; exit 1; }
+
+echo "→ auction-module assertions"
+docker cp supabase/tests/auction_logic_test.sql "$NAME:/tmp/auction_logic_test.sql" >/dev/null
+OUT=$(docker exec "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q -f /tmp/auction_logic_test.sql 2>&1)
+echo "$OUT" | grep -E "PASS|FAIL" || true
+echo "$OUT" | grep -q "ALL AUCTION TESTS PASSED" || { echo "TESTS FAILED"; exit 1; }
 echo "✓ all database checks passed"

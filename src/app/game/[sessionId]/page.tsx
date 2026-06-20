@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useSession } from '@/lib/useSession'
 import { getIdentity } from '@/lib/identity'
 import { Confetti, currentReveal, DrawReel, WinnerCard } from '@/components/DrawDisplay'
@@ -9,6 +10,7 @@ import { VippsCard } from '@/components/VippsCard'
 
 export default function PlayerView({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
+  const router = useRouter()
   const { supabase, session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [identityChecked, setIdentityChecked] = useState(false)
@@ -16,6 +18,11 @@ export default function PlayerView({ params }: { params: Promise<{ sessionId: st
   useEffect(() => {
     if (session?.draw_state !== 'revealed') setLanded(false)
   }, [session?.draw_state])
+
+  // Auction sessions live under /auksjon — bounce there (shared QR points here).
+  useEffect(() => {
+    if (session?.kind === 'auksjon') router.replace(`/auksjon/${sessionId}`)
+  }, [session?.kind, sessionId, router])
 
   useEffect(() => {
     const id = getIdentity()
@@ -50,6 +57,7 @@ export default function PlayerView({ params }: { params: Promise<{ sessionId: st
 
   if (!loaded || !identityChecked) return <Centered>Laster…</Centered>
   if (missing || !session) return <Centered>Fant ikke basaren.</Centered>
+  if (session.kind === 'auksjon') return <Centered>Åpner auksjonen…</Centered>
   if (!playerId)
     return (
       <Centered>

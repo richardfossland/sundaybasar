@@ -19,6 +19,10 @@ export interface Session {
   draw_state: DrawState
   player_count: number
   created_at: string
+  /** 'basar' (default) or 'auksjon' — auction module (migration 0006). */
+  kind?: 'basar' | 'auksjon'
+  /** Auction fundraising goal for the thermometer (migration 0006). */
+  goal_amount?: number | null
 }
 
 export interface Player {
@@ -28,6 +32,8 @@ export interface Player {
   is_offline: boolean
   is_online: boolean
   created_at: string
+  /** Bid/paddle number for live auction (migration 0006). */
+  paddle_number?: number | null
 }
 
 export interface Lot {
