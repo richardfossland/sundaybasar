@@ -37,13 +37,16 @@ begin
   perform pg_temp.assert_true(not has_table_privilege('anon','basar.sessions','update'), '1: anon cannot update sessions');
   perform pg_temp.assert_true(not has_table_privilege('anon','basar.prizes','insert'), '1: anon cannot insert prizes');
   perform pg_temp.assert_true(not has_table_privilege('anon','basar.events','insert'), '1: anon cannot insert events');
+  -- 5 basar tables + 3 public auction tables (0007-0009). auction_proxy_maxes is
+  -- deliberately absent (it holds hidden bid maximums — must not leak via realtime).
   perform pg_temp.assert_eq(
     (select count(*) from pg_publication_tables where pubname='supabase_realtime' and schemaname='basar')::int,
-    5, '1: realtime publication has exactly 5 basar tables');
+    8, '1: realtime publication has exactly 8 basar tables');
   perform pg_temp.assert_true(
     (select array_agg(tablename::text order by tablename) from pg_publication_tables
       where pubname='supabase_realtime' and schemaname='basar')
-    = array['events','lots','players','prizes','sessions'], '1: publication = the 5 public tables');
+    = array['auction_bids','auction_items','auction_settlements','events','lots','players','prizes','sessions'],
+    '1: publication = the 8 public tables (proxy_maxes excluded)');
   perform pg_temp.assert_true(
     not has_function_privilege('anon','basar._allocate(uuid,uuid,integer,integer,text)','execute'),
     '1: anon cannot execute _allocate');
