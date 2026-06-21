@@ -17,6 +17,20 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+  build:
+    # The OpenNext/Cloudflare build catches bundling/runtime breaks the check job
+    # does NOT — e.g. a Node-runtime middleware OpenNext rejects — which otherwise
+    # only surface at deploy. (No Cloudflare auth: builds the Worker, not deploy.)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run cf:build
+
   db:
     # scripts/test-db.sh spins up postgres:16 in Docker and applies the real
     # migration(s) + SQL assertions — the same proof run locally before deploys.
