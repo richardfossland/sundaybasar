@@ -1,7 +1,9 @@
 # Auksjonsmodul i SundayBasar — implementeringsplan
 
-> Status: **PLAN — ikke implementert.** Skrevet 2026-06-20. Klar til å hand-es til en
-> implementerende agent. Ingen kode/migrasjoner er rørt ennå.
+> Status: **IMPLEMENTERT OG LIVE.** Hele 4-format-auksjonsmodulen (live / stille / hollandsk /
+> live-klubbe) er deployet og i produksjon på `basar.sundaysuite.app` siden 2026-06-20.
+> Dokumentet under er det opprinnelige design-planen fra 2026-06-20 og beholdes som historisk
+> referanse.
 
 Auksjon legges inn som en **modul i basar-appen** (ikke en egen app). Den gjenbruker
 basars sesjon/kode, deltaker-innlogging, SSO, Supabase Realtime og projektor-show, og
