@@ -6,6 +6,7 @@ import {
   REEL_LAND_MS,
   REEL_STRIP_LENGTH,
   reelIndexAt,
+  syntheticPool,
 } from './drawReel'
 
 describe('clamp01', () => {
@@ -126,3 +127,31 @@ describe('reelIndexAt — lands on the winner cell, never overshoots', () => {
     expect(reelIndexAt(-100, REEL_LAND_MS, len)).toBe(0)
   })
 })
+
+describe('syntheticPool', () => {
+  it('returns [] for an empty pot', () => {
+    expect(syntheticPool(0, 50)).toEqual([])
+    expect(syntheticPool(10, 0)).toEqual([])
+  })
+
+  it('stays within [1, max], is distinct, and never exceeds count/cap', () => {
+    let seed = 1
+    const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280)
+    const pool = syntheticPool(500, 120, [], 60, rand)
+    expect(pool.length).toBe(60)
+    expect(new Set(pool).size).toBe(pool.length)
+    for (const n of pool) {
+      expect(n).toBeGreaterThanOrEqual(1)
+      expect(n).toBeLessThanOrEqual(120)
+    }
+    expect(syntheticPool(7, 200).length).toBe(7)
+  })
+
+  it('always includes the known (own) numbers when in range', () => {
+    const pool = syntheticPool(100, 100, [3, 44, 250])
+    expect(pool).toContain(3)
+    expect(pool).toContain(44)
+    expect(pool).not.toContain(250)
+  })
+})
+

@@ -83,3 +83,32 @@ export const REEL_LAND_MS = 2600
 export const REEL_STRIP_LENGTH = 28
 /** Blind-spin tick interval (ms) while the server draw is in `spinning`. */
 export const REEL_SPIN_TICK_MS = 80
+
+/**
+ * Decoy pool for a client that does NOT hold the full lots table (a player's
+ * phone only knows its own lots plus how many are in the pot and the highest
+ * number). Produces up to `cap` distinct numbers in [1, max], always including
+ * `known` (the player's own numbers, so the reel shows familiar digits too).
+ * Purely cosmetic — the winner is server-decided and pinned by buildReelStrip.
+ * Returns [] when the pot is empty so the reel shows "?" like before.
+ */
+export function syntheticPool(
+  count: number,
+  max: number,
+  known: number[] = [],
+  cap = 60,
+  rand: () => number = Math.random
+): number[] {
+  const n = Math.max(0, Math.floor(count))
+  const hi = Math.max(0, Math.floor(max))
+  if (n === 0 || hi === 0) return []
+  const out = new Set<number>()
+  for (const k of known) if (k >= 1 && k <= hi) out.add(k)
+  const target = Math.min(cap, n, hi)
+  let guard = 0
+  while (out.size < target && guard++ < target * 20) {
+    out.add(1 + Math.floor(clamp01(rand()) * hi) % hi)
+  }
+  return [...out]
+}
+

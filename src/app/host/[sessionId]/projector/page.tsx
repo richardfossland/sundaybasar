@@ -15,7 +15,8 @@ import { VippsCard } from '@/components/VippsCard'
 
 export default function Projector({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
-  const { session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId)
+  // The big screen never renders the players list — skip that subscription.
+  const { session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId, { players: false })
 
   // Synthesized SFX. Off until the host arms it from a click (browser autoplay
   // policy) — the projector is opened by the host on the big screen.

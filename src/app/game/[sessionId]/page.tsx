@@ -11,9 +11,14 @@ import { VippsCard } from '@/components/VippsCard'
 export default function PlayerView({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
   const router = useRouter()
-  const { supabase, session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId)
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [identityChecked, setIdentityChecked] = useState(false)
+  // A phone follows only ITS OWN lots (plus a pool summary for the reel) —
+  // never the whole room's årer, and never the players list.
+  const { supabase, session, lots, prizes, revealedDraws, loaded, missing, poolNumbers } = useSession(
+    sessionId,
+    { players: false, lots: playerId ? { playerId } : 'none' }
+  )
   const [landed, setLanded] = useState(false)
   useEffect(() => {
     if (session?.draw_state !== 'revealed') setLanded(false)
@@ -43,13 +48,6 @@ export default function PlayerView({ params }: { params: Promise<{ sessionId: st
   const myRoundLots = useMemo(
     () => (session ? myLots.filter((l) => l.round === session.current_round) : []),
     [myLots, session]
-  )
-  const poolNumbers = useMemo(
-    () =>
-      session
-        ? lots.filter((l) => l.round === session.current_round && !l.removed).map((l) => l.number)
-        : [],
-    [lots, session]
   )
   const reveal = currentReveal(session, revealedDraws)
   const winners = revealedDraws.filter((d) => !d.voided)
