@@ -2,19 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createCoalescer } from '@/lib/coalesce'
 import type { Session } from '@/types/game'
 import type { AuctionItem, AuctionState } from '@/types/auction'
 
+/** One fetch per burst of change notifications (see lib/coalesce.ts). */
+const COALESCE_MS = 400
+
 /**
  * Live auction state for the host console, projector and bidder view — the
- * auction analogue of useSession. Realtime postgres_changes on the published
- * auction tables + a full refetch on (re)subscribe and tab re-focus, so a
- * dropped websocket never leaves a screen stuck mid-auction.
+ * auction analogue of useSession. Realtime postgres_changes on the session row
+ * and on THIS session's auction_items, coalesced into one get_auction_state
+ * refetch per burst, plus a full refetch on (re)subscribe and tab re-focus.
  *
- * The aggregate read is get_auction_state (NEVER exposes reserve_price or the
- * hidden proxy maxima — auction_proxy_maxes is not even in the publication).
- * `tick` increments on every realtime change so host-only views (settlements)
- * can re-fetch their own data.
+ * auction_bids / auction_settlements are deliberately NOT subscribed to: they
+ * carry no session_id, so the only possible subscription was an unfiltered one
+ * that fired for every bid in every auction anywhere — and every bid already
+ * updates auction_items (price/leader) and every sale updates its status, so
+ * the filtered items subscription sees everything a screen needs. The host's
+ * oppgjør tab reloads settlements on its own actions and on `tick`.
+ *
+ * get_auction_state NEVER exposes reserve_price or the hidden proxy maxima
+ * (auction_proxy_maxes is not even in the publication).
  */
 export function useAuction(sessionId: string) {
   const supabase = useMemo(() => createClient(), [])
@@ -36,7 +45,10 @@ export function useAuction(sessionId: string) {
     ])
     if (!s.error) {
       if (!s.data) setMissing(true)
-      else setSession(s.data as Session)
+      else {
+        setMissing(false)
+        setSession(s.data as Session)
+      }
     }
     if (st.data && (st.data as AuctionState).ok) {
       const state = st.data as AuctionState
@@ -49,27 +61,29 @@ export function useAuction(sessionId: string) {
 
   useEffect(() => {
     refresh()
-    // auction_bids / auction_settlements have no session_id column, so we
-    // subscribe broadly and let the per-session refetch (get_auction_state) do
-    // the scoping. auction_proxy_maxes is intentionally never subscribed.
-    const bump = () => {
-      refresh()
+    const bump = createCoalescer(() => {
+      void refresh()
       setTick((t) => t + 1)
-    }
+    }, COALESCE_MS)
     const ch = supabase
       .channel(`basar-auction-${sessionId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'basar', table: 'sessions', filter: `id=eq.${sessionId}` },
-        (p) => setSession(p.new as Session)
+        (p) => {
+          if (p.eventType === 'DELETE') {
+            setSession(null)
+            setMissing(true)
+            return
+          }
+          setSession(p.new as Session)
+        }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'basar', table: 'auction_items', filter: `session_id=eq.${sessionId}` },
-        bump
+        () => bump.trigger()
       )
-      .on('postgres_changes', { event: '*', schema: 'basar', table: 'auction_bids' }, bump)
-      .on('postgres_changes', { event: '*', schema: 'basar', table: 'auction_settlements' }, bump)
       .subscribe()
 
     const onVisible = () => {
@@ -77,6 +91,7 @@ export function useAuction(sessionId: string) {
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => {
+      bump.cancel()
       supabase.removeChannel(ch)
       document.removeEventListener('visibilitychange', onVisible)
     }
