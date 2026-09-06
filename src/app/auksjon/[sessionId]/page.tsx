@@ -6,7 +6,16 @@ import { useAuction } from '@/lib/useAuction'
 import { getIdentity } from '@/lib/identity'
 import { Thermometer } from '@/components/Thermometer'
 import { ErrorText } from '@/components/ErrorText'
-import { CATEGORY_EMOJI, FORMAT_LABELS, STAGE_LABEL, currentDutchPrice, kr, minNextBid } from '@/types/auction'
+import {
+  CATEGORY_EMOJI,
+  FORMAT_LABELS,
+  STAGE_LABEL,
+  currentDutchPrice,
+  deadlineState,
+  fmtCountdown,
+  kr,
+  minNextBid,
+} from '@/types/auction'
 import { useNow } from '@/lib/useNow'
 import type { AuctionItem } from '@/types/auction'
 
@@ -134,6 +143,10 @@ function ItemCard({
   const now = useNow()
   const leading = item.current_leader_player_id === playerId
   const price = item.current_amount != null ? Number(item.current_amount) : Number(item.start_price)
+  // Stille: the server refuses bids after the deadline («Fristen er ute»);
+  // mirror that here so the button disappears instead of erroring, and show
+  // the countdown so a bidder can time the last seconds (anti-snipe extends).
+  const frist = deadlineState(item, now)
 
   return (
     <div className={`${card} ${leading ? 'border-gold' : ''}`}>
@@ -164,6 +177,20 @@ function ItemCard({
           {item.live_stage && (
             <p className="mt-2 text-center text-lg font-semibold text-gold">{STAGE_LABEL[item.live_stage]}</p>
           )}
+          {frist.msLeft != null && !frist.expired && (
+            <p
+              className={`mt-2 text-center text-sm font-semibold tabular-nums ${
+                frist.msLeft < 30_000 ? 'text-red-soft' : 'text-muted'
+              }`}
+            >
+              ⏱ Frist {fmtCountdown(frist.msLeft)}
+            </p>
+          )}
+          {frist.expired && (
+            <p className="mt-2 text-center text-sm font-semibold text-red-soft">
+              Fristen er ute — venter på auksjonarius
+            </p>
+          )}
           <div className="mt-3 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-gold">{kr(price)}</span>
             {leading ? (
@@ -174,7 +201,7 @@ function ItemCard({
               <span className="text-sm text-muted">Ingen bud ennå</span>
             )}
           </div>
-          {open && (
+          {open && !frist.expired && (
             <BidPanel item={item} playerId={playerId} secret={secret} supabase={supabase} onDone={onDone} />
           )}
         </>
@@ -198,6 +225,13 @@ function BidPanel({
 }) {
   const min = minNextBid(item)
   const [amount, setAmount] = useState(String(min))
+  // Follow the rising minimum until the bidder types their own figure — the
+  // field used to freeze at the first minimum, so a rival's bid turned every
+  // later tap into «For lavt bud».
+  const [touched, setTouched] = useState(false)
+  useEffect(() => {
+    if (!touched) setAmount(String(min))
+  }, [min, touched])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
@@ -215,6 +249,7 @@ function BidPanel({
     setBusy(false)
     if (error) return setErr(error.message)
     if (!data?.ok) return setErr(data.error ?? 'Kunne ikke by.')
+    setTouched(false)
     onDone()
   }
 
@@ -239,7 +274,10 @@ function BidPanel({
           className={input}
           inputMode="numeric"
           value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
+          onChange={(e) => {
+            setTouched(true)
+            setAmount(e.target.value.replace(/[^0-9]/g, ''))
+          }}
           aria-label="Maksbud i kroner"
         />
         <button className={primaryBtn} onClick={bid} disabled={busy}>

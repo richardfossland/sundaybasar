@@ -55,6 +55,18 @@ npm run cf:deploy    # bygg + deploy til Cloudflare
    laste opp et bilde per premie; uten bøtta fungerer alt annet som før og
    opplasting feiler pent med en melding. Man kan også bare lime inn en bilde-URL.
 
+## Auksjon: stille auksjon med frist
+
+Et objekt i format **stille** får fristen sin når verten **aktiverer** det
+(«Aktiver (10 min)» i vertspanelet — minuttene velges der), ikke når det ble
+lagt inn dagen før. Nedtellingen vises hos byderne og på storskjermen; et bud
+i de siste sekundene forlenger fristen automatisk (anti-snik). Når fristen er
+ute avviser serveren nye bud, og verten avslutter med «Marker solgt» eller
+«Pass» — eller gir «+2 min». Krever migrasjon `0012_stille_frist.sql`
+(`activate_item` får valgfri `p_duration_seconds`); uten den feiler
+aktivering med frist med en «Could not find the function»-melding fra
+PostgREST, mens aktivering uten frist virker som før.
+
 ## Trekning som show (storskjerm)
 
 Selve trekningen er en spektakkel-animasjon på storskjermen (og hos spillerne):

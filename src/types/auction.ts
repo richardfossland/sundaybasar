@@ -104,3 +104,24 @@ export const STAGE_LABEL: Record<'first' | 'second', string> = {
   first: 'Første gang!',
   second: 'Andre gang!',
 }
+
+/** Time left on a stille item's deadline at a given clock. `nowMs === 0` means
+ * the client clock has not started (SSR / first render) → unknown, not expired,
+ * so nothing flashes «Fristen er ute» before hydration. */
+export function deadlineState(
+  item: Pick<AuctionItem, 'deadline'>,
+  nowMs: number
+): { msLeft: number | null; expired: boolean } {
+  if (!item.deadline || nowMs === 0) return { msLeft: null, expired: false }
+  const ms = new Date(item.deadline).getTime() - nowMs
+  if (!Number.isFinite(ms)) return { msLeft: null, expired: false }
+  return { msLeft: Math.max(0, ms), expired: ms <= 0 }
+}
+
+/** m:ss countdown (rounded up so it never shows 0:00 while bids still count). */
+export function fmtCountdown(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  const m = Math.floor(s / 60)
+  return `${m}:${String(s % 60).padStart(2, '0')}`
+}
+

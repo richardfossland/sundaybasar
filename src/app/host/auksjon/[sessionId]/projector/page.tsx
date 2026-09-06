@@ -7,7 +7,7 @@ import { useNow } from '@/lib/useNow'
 import { Confetti } from '@/components/DrawDisplay'
 import { Thermometer } from '@/components/Thermometer'
 import { armAudio, playFanfare, setMuted } from '@/lib/drawSound'
-import { CATEGORY_EMOJI, STAGE_LABEL, currentDutchPrice, kr } from '@/types/auction'
+import { CATEGORY_EMOJI, STAGE_LABEL, currentDutchPrice, deadlineState, fmtCountdown, kr } from '@/types/auction'
 
 export default function AuctionProjector({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
@@ -92,6 +92,7 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
                 : it.current_amount != null
                   ? Number(it.current_amount)
                   : Number(it.start_price)
+              const frist = it.format === 'stille' ? deadlineState(it, now) : null
               return (
                 <div key={it.id} className="rounded-3xl border-2 border-gold bg-surface p-6">
                   <p className="text-3xl font-semibold text-text">
@@ -107,6 +108,12 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
                       {it.leader_name ? `Ledes av ${it.leader_name}` : 'Ingen bud ennå'}
                     </p>
                   )}
+                  {frist && frist.msLeft != null && !frist.expired && (
+                    <p className={`mt-2 text-2xl font-semibold tabular-nums ${frist.msLeft < 30_000 ? 'text-red-soft' : 'text-muted'}`}>
+                      ⏱ {fmtCountdown(frist.msLeft)}
+                    </p>
+                  )}
+                  {frist?.expired && <p className="mt-2 text-2xl font-semibold text-red-soft">Fristen er ute</p>}
                 </div>
               )
             })}
