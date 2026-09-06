@@ -12,6 +12,8 @@ import {
   FORMAT_LABELS,
   STAGE_LABEL,
   currentDutchPrice,
+  deadlineState,
+  fmtCountdown,
   kr,
 } from '@/types/auction'
 import { useNow } from '@/lib/useNow'
@@ -370,7 +372,19 @@ function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
   const now = useNow()
   const isDutch = item.format === 'hollandsk'
   const isLive = item.format === 'live'
+  const isStille = item.format === 'stille'
   const started = !isDutch || !!item.dutch_started_at
+  // Stille: the deadline is set when the host ACTIVATES (migration 0012), not
+  // when the object was typed in the day before. Minutes are chosen here.
+  const [minutes, setMinutes] = useState('10')
+  const frist = deadlineState(item, now)
+  function activate(durationMin: number | null) {
+    const secs = durationMin && durationMin > 0 ? Math.round(durationMin * 60) : null
+    return call('activate_item', {
+      p_item_id: item.id,
+      ...(secs ? { p_duration_seconds: secs } : {}),
+    })
+  }
   const price = isDutch
     ? currentDutchPrice(item, now)
     : item.current_amount != null
@@ -414,6 +428,15 @@ function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
               {isLive && item.live_stage && (
                 <span className="ml-1 font-semibold text-gold">· {STAGE_LABEL[item.live_stage]}</span>
               )}
+              {isStille && frist.msLeft != null && !frist.expired && (
+                <span className={`ml-1 tabular-nums ${frist.msLeft < 30_000 ? 'text-red-soft' : ''}`}>
+                  · ⏱ {fmtCountdown(frist.msLeft)}
+                </span>
+              )}
+              {isStille && frist.expired && (
+                <span className="ml-1 font-semibold text-red-soft">· Fristen er ute — marker solgt eller pass</span>
+              )}
+              {isStille && !item.deadline && <span className="ml-1 text-faint">· ingen frist</span>}
             </>
           )}
         </div>
@@ -431,11 +454,32 @@ function ItemCardHost({ item, call }: { item: AuctionItem; call: CallFn }) {
             <button className={primaryBtn} onClick={() => call('start_dutch', { p_item_id: item.id })}>
               Start synkende pris
             </button>
+          ) : isStille ? (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1 text-sm text-muted">
+                <input
+                  className={`${input} w-16 px-2 py-2 text-center`}
+                  inputMode="numeric"
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ''))}
+                  aria-label="Frist i minutter"
+                />
+                min
+              </label>
+              <button className={primaryBtn} onClick={() => activate(Number(minutes) || null)}>
+                Aktiver{Number(minutes) > 0 ? ` (${Number(minutes)} min)` : ''}
+              </button>
+            </div>
           ) : (
-            <button className={primaryBtn} onClick={() => call('activate_item', { p_item_id: item.id })}>
+            <button className={primaryBtn} onClick={() => activate(null)}>
               Aktiver
             </button>
           ))}
+        {item.status === 'active' && isStille && (
+          <button className={ghostBtn} onClick={() => activate(2)} title="Forleng fristen med to minutter">
+            +2 min
+          </button>
+        )}
         {item.status === 'active' && !isDutch && (
           <button className={primaryBtn} onClick={() => call('mark_sold', { p_item_id: item.id })}>
             Marker solgt

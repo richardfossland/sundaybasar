@@ -406,4 +406,49 @@ begin
   perform pg_temp.assert_err(basar.call_stage(sid,hsec,stille,'first'), 'Ikke en live-auksjon', 'A15: stage on non-live rejected');
 end $$;
 
+-- ============ A16. Stille auksjon: frist satt ved aktivering (0012) ============
+do $$
+declare r jsonb; sid uuid; hsec text; itid uuid; p1 uuid; s1 text; dl timestamptz; dl2 timestamptz;
+begin
+  r := basar.create_auction_session('host-a16'); sid := (r->>'session_id')::uuid; hsec := r->>'host_secret';
+  r := basar.join_session((select code from basar.sessions where id = sid), 'Bidder');
+  p1 := (r->>'player_id')::uuid; s1 := r->>'secret';
+
+  itid := ((basar.create_auction_item(sid,hsec,'Kake','','gjenstand','stille',100,10))->>'item_id')::uuid;
+  perform pg_temp.assert_true((select deadline from auction_items where id=itid) is null, 'A16: no deadline at creation');
+
+  -- 3-arg call still works (positional) and leaves the deadline untouched
+  perform pg_temp.assert_ok(basar.activate_item(sid,hsec,itid), 'A16: activate without duration');
+  perform pg_temp.assert_true((select deadline from auction_items where id=itid) is null, 'A16: still no deadline');
+
+  -- a duration on an active item sets/extends the deadline
+  perform pg_temp.assert_err(basar.activate_item(sid,hsec,itid,0), 'Fristen må være positiv', 'A16: zero duration rejected');
+  r := basar.activate_item(sid,hsec,itid,600);
+  perform pg_temp.assert_ok(r, 'A16: activate with 10 min');
+  dl := (select deadline from auction_items where id=itid);
+  perform pg_temp.assert_true(dl > now() + interval '9 minutes' and dl <= now() + interval '10 minutes', 'A16: deadline ≈ now + 10 min');
+  perform pg_temp.assert_true((r->>'deadline')::timestamptz = dl, 'A16: deadline returned');
+
+  -- bids accepted before the deadline
+  perform pg_temp.assert_ok(basar.place_bid(p1,s1,itid,100), 'A16: bid before deadline');
+
+  -- anti-snipe: a bid inside the last antisnipe_seconds pushes the deadline out
+  update basar.auction_items set deadline = now() + interval '3 seconds' where id = itid;
+  perform pg_temp.assert_ok(basar.place_bid(p1,s1,itid,150), 'A16: bid in the final seconds');
+  dl2 := (select deadline from auction_items where id=itid);
+  perform pg_temp.assert_true(dl2 > now() + interval '8 seconds', 'A16: anti-snipe extended the deadline');
+
+  -- after the deadline: no bids, but the host may extend (+2 min) and bidding resumes
+  update basar.auction_items set deadline = now() - interval '1 second' where id = itid;
+  perform pg_temp.assert_err(basar.place_bid(p1,s1,itid,200), 'Fristen er ute', 'A16: bid after deadline rejected');
+  perform pg_temp.assert_ok(basar.activate_item(sid,hsec,itid,120), 'A16: extend by 2 min');
+  perform pg_temp.assert_true((select deadline from auction_items where id=itid) > now() + interval '1 minute', 'A16: deadline extended');
+  perform pg_temp.assert_ok(basar.place_bid(p1,s1,itid,200), 'A16: bid accepted again');
+
+  -- mark_sold still works on an expired stille item (the host closes it)
+  update basar.auction_items set deadline = now() - interval '1 second' where id = itid;
+  perform pg_temp.assert_ok(basar.mark_sold(sid,hsec,itid), 'A16: mark_sold after deadline');
+  perform pg_temp.assert_true((select status from auction_items where id=itid) = 'sold', 'A16: sold');
+end $$;
+
 do $$ begin raise notice 'ALL AUCTION TESTS PASSED'; end $$;
