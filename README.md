@@ -67,3 +67,27 @@ ren og enhetstestet (`src/lib/drawReel.test.ts`); lyden ligger i
 `src/lib/drawSound.ts`. Verten skrur på lyd med «Lyd på» på storskjermen (kreves
 av nettleserens autoplay-regler). Honorerer `prefers-reduced-motion` (hopper
 rett til resultatet, ingen lyd-spam).
+
+## Helse og oppetid
+
+`GET /api/health` er en enkel livstegn-probe — svarer `{ ok: true, app:
+"sundaybasar", ts }` uten å røre databasen. Lagt til `?db=1` gjør i tillegg det
+letteste mulige Supabase-kallet (én rad, én indeksert kolonne fra
+`basar.sessions`); feiler det, svarer endepunktet `503` med
+`{ ok: false, app, ts, db: "error", ms }` i stedet for å kaste — en
+overvåker skal alltid se en statuskode, aldri en Worker-krasjside.
+`db`-grenen er rate-limitet til 60 kall/min per IP (endepunktet er
+uautentisert). `HEAD /api/health` speiler samme status uten body.
+
+Alle uante `/api/*`-stier (skrivefeil, gamle klienter, skannere) svarer med
+JSON `{ ok: false, error: "not_found" }` og status 404 i stedet for å falle
+gjennom til den rendrede not-found-siden — billigere for Workeren, og holder
+klientkoden som leser feilkoder fra JSON-kroppen i live.
+
+Et GitHub Actions-workflow (`.github/workflows/uptime.yml`, `npm run uptime`
+lokalt) prober `basar.sundaysuite.app` utenfra hvert ~10. minutt (`/`,
+`/host/new`, `/api/health?db=1`), og filer/oppdaterer et issue merket
+`uptime` ved feil — lukker det automatisk ved neste grønne kjøring. **NB:**
+GitHub deaktiverer planlagte workflows automatisk etter 60 dager uten
+repo-aktivitet (commits, PR-er) — går probene stille, sjekk Actions → uptime →
+re-aktiver, ikke bare Cloudflare-status.
