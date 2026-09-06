@@ -10,6 +10,7 @@
     "test": "vitest run",
     "check": "tsc --noEmit && vitest run",
     "test:db": "./scripts/test-db.sh",
+    "uptime": "node scripts/probe.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"

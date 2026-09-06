@@ -15,7 +15,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run check
 
   build:
     # The OpenNext/Cloudflare build catches bundling/runtime breaks the check job
