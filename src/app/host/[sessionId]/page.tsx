@@ -25,7 +25,14 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
   const [tab, setTab] = useState<Tab>('deltakere')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const hostSecret = typeof window !== 'undefined' ? getHostSecret(sessionId) : null
+  // localStorage is read after mount: reading it during render made the
+  // server HTML («ikke vertsnøkkel») disagree with the client's first paint →
+  // a hydration error and a flash of the wrong screen on every load.
+  // undefined = not read yet, null = this device has no key.
+  const [hostSecret, setHostSecret] = useState<string | null | undefined>(undefined)
+  useEffect(() => {
+    setHostSecret(getHostSecret(sessionId))
+  }, [sessionId])
 
   // Every host RPC goes through here: uniform error surfacing + refresh.
   const call = useCallback(
@@ -59,7 +66,7 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
     return roundLots.length * session.price_per_lodd
   }, [roundLots, session])
 
-  if (!loaded) return <Centered>Laster…</Centered>
+  if (!loaded || hostSecret === undefined) return <Centered>Laster…</Centered>
   if (missing || !session) return <Centered>Fant ikke basaren.</Centered>
   if (!hostSecret)
     return (
@@ -711,9 +718,13 @@ function SettingsTab({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
   async function save() {
+    // update_settings: null = leave as-is, '' = clear. The Vipps link is
+    // optional, so an emptied field must actually clear it (it used to be
+    // mapped to null and silently kept the old link). The Vipps number is
+    // required in kjøp mode and cannot be cleared — an empty field keeps it.
     const r = await call('update_settings', {
       p_vipps_number: vipps.trim() || null,
-      p_vipps_link: link.trim() || null,
+      p_vipps_link: link.trim(),
       p_price: price,
     })
     if (r) setNotice('Innstillingene er lagret.')

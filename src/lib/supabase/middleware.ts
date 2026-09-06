@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { sharedCookieOptions } from './cookies'
 import { SUNDAY_AUTH_ANON_KEY, SUNDAY_AUTH_URL } from './auth-env'
+import { HOST_LOGIN_PATH as LOGIN_PATH, isOpenHostPath } from '@/lib/hostRoutes'
 
 // SSO host middleware. Two jobs, scoped to the host/auth surface ONLY:
 //  1. refresh the Sunday Account session cookie so it doesn't expire mid-use;
@@ -17,20 +18,16 @@ import { SUNDAY_AUTH_ANON_KEY, SUNDAY_AUTH_URL } from './auth-env'
 // Only `/host` (the new "Mine basarer" dashboard) requires a Sunday login. Join
 // / game / display surfaces are never matched here at all.
 
-/** The login surface itself — always reachable without a session. */
-const LOGIN_PATH = '/host/login'
-
-/** True for any `/host/<segment>...` path (create wizard, per-basar console,
- * projector) — these use the code-based host auth and must stay anonymous.
- * Only the bare `/host` (or `/host/`) dashboard is the Sunday-gated surface. */
-function isCodeBasedHostRoute(path: string): boolean {
-  if (path === LOGIN_PATH || path.startsWith(`${LOGIN_PATH}/`)) return false
-  const rest = path.replace(/^\/host\/?/, '')
-  return rest.length > 0
-}
-
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request })
+  const path = request.nextUrl.pathname
+
+  // Decide by PATH before touching the issuer. The code-based host surfaces
+  // (wizard / console / projector / auction console) and the auth callback are
+  // always open, so they must not pay a network round-trip to the Sunday
+  // Account project on every navigation — and, more importantly, a projector
+  // on the big screen must keep working even if the issuer is unreachable.
+  if (isOpenHostPath(path)) return response
 
   const supabase = createServerClient(SUNDAY_AUTH_URL, SUNDAY_AUTH_ANON_KEY, {
     cookieOptions: sharedCookieOptions(),
@@ -51,15 +48,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const path = request.nextUrl.pathname
-
-  // /auth/* (callback) must run before any session exists — let it through.
-  if (path.startsWith('/auth/')) return response
-
-  // The code-based host surfaces (wizard / console / projector) stay open —
-  // they authenticate themselves via the per-session host_secret.
-  if (isCodeBasedHostRoute(path)) return response
 
   // The login page itself is always reachable.
   if (path === LOGIN_PATH || path.startsWith(`${LOGIN_PATH}/`)) {
