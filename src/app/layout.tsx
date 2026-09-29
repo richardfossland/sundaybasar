@@ -3,7 +3,7 @@ import { Playfair_Display, Hanken_Grotesk } from 'next/font/google'
 import './globals.css'
 
 // Suite brand fonts — Playfair Display for the wordmark/display, Hanken Grotesk
-// for body. Mirrors the rest of the Sunday Suite.
+// for body. Mirrors the rest of the SundaySuite.
 const display = Playfair_Display({
   variable: '--font-display',
   subsets: ['latin'],
