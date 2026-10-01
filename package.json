@@ -16,24 +16,24 @@
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.0",
+    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.108.1",
-    "next": "16.3.3",
+    "next": "16.3.6",
     "qrcode.react": "^4.2.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.19.11",
+    "@opennextjs/cloudflare": "^1.20.6",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^5.0.1",
-    "wrangler": "^4.99.0"
+    "vitest": "^5.0.2",
+    "wrangler": "^4.141.0"
   }
 }
