@@ -12,8 +12,18 @@ import {
 } from '@/components/DrawDisplay'
 import { armAudio, setMuted } from '@/lib/drawSound'
 import { VippsCard } from '@/components/VippsCard'
+import { TavleRamme } from '@/lib/client/storskjerm/TavleRamme'
 
 export default function Projector({ params }: { params: Promise<{ sessionId: string }> }) {
+  // TavleRamme gir tavlevisning (?visning=tavle): skjult peker, wake lock, F, avslutt.
+  return (
+    <TavleRamme>
+      <ProjectorView params={params} />
+    </TavleRamme>
+  )
+}
+
+function ProjectorView({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
   // The big screen never renders the players list — skip that subscription.
   const { session, lots, prizes, revealedDraws, loaded, missing } = useSession(sessionId, { players: false })
@@ -66,7 +76,7 @@ export default function Projector({ params }: { params: Promise<{ sessionId: str
     const showWinner = session.draw_state === 'revealed' && reveal && landed
     return (
       <Big>
-        <div className="absolute right-6 top-6">
+        <div className="sound-toggle absolute right-6 top-6">
           <AudioToggle
             on={sound}
             onToggle={(next) => {

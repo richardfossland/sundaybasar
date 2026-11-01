@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { StorskjermButton } from '@/lib/client/storskjerm/StorskjermButton'
 import { useAuction } from '@/lib/useAuction'
 import { getHostSecret } from '@/lib/identity'
 import { ErrorText } from '@/components/ErrorText'
@@ -113,13 +113,7 @@ export default function AuctionHost({ params }: { params: Promise<{ sessionId: s
             Kode <span className="font-bold tracking-widest text-text">{session.code}</span>
           </p>
         </div>
-        <Link
-          href={`/host/auksjon/${sessionId}/projector`}
-          target="_blank"
-          className={ghostBtn}
-        >
-          Storskjerm ↗
-        </Link>
+        <StorskjermButton tavleHref={`/host/auksjon/${sessionId}/projector`} />
       </header>
 
       <Thermometer raised={raisedTotal} goal={goalAmount} />
