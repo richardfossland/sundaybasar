@@ -1,0 +1,159 @@
+/* Storskjerm: veiviser + tavlevisning. Bruker Basar-tokens (--color-*) fra
+ * globals.css; vanlige CSS-klasser så mappa ikke er avhengig av Tailwind. */
+
+.storskjerm-knapp {
+  min-height: 2.75rem;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.storskjerm-primaer {
+  min-height: 2.75rem;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--color-gold);
+  color: var(--color-bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.storskjerm-dempet {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.storskjerm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.6);
+}
+.storskjerm-panel {
+  display: grid;
+  gap: 12px;
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.storskjerm-panel h3,
+.storskjerm-panel p {
+  margin: 0;
+}
+.storskjerm-panel h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-gold);
+}
+.storskjerm-kort {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+.storskjerm-kort h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.storskjerm-kort p,
+.storskjerm-kort ol {
+  margin: 0;
+}
+.storskjerm-kort ol {
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+}
+.storskjerm-anbefalt {
+  border-color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 8%, transparent);
+}
+.storskjerm-merke {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: var(--color-gold);
+}
+.storskjerm-melding-ok {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.storskjerm-melding-feil {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-red-soft);
+}
+
+/* ---- Tavlevisning (?visning=tavle) ---- */
+.hide-cursor,
+.hide-cursor * {
+  cursor: none !important;
+}
+/* Luft mot overscan på TV/projektor (16:9-trygg ramme) og større skrift på
+ * store skjermer. `zoom` skalerer hele skjermen likt, også px-baserte størrelser. */
+.presentasjon {
+  padding: 2vh 2.5vw;
+  min-height: 100dvh;
+}
+/* Sidene har egen min-h-screen; trekk fra rammens padding så det ikke scroller. */
+.presentasjon > main {
+  min-height: calc(100dvh - 4vh);
+}
+@media (min-width: 1280px) {
+  .presentasjon {
+    zoom: 1.1;
+  }
+}
+@media (min-width: 1800px) {
+  .presentasjon {
+    zoom: 1.3;
+  }
+}
+/* Lydknappen er for hånden, ikke for publikum: nesten usynlig til hover. */
+.presentasjon .sound-toggle {
+  opacity: 0.15;
+  transition: opacity 0.2s ease;
+}
+.presentasjon .sound-toggle:hover,
+.presentasjon .sound-toggle:focus-within {
+  opacity: 1;
+}
+.presentasjon-avslutt {
+  position: fixed;
+  bottom: 16px;
+  left: 20px;
+  z-index: 40;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.presentasjon-avslutt:hover,
+.presentasjon-avslutt:focus-visible {
+  opacity: 1;
+}

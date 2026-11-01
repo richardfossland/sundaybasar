@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { StorskjermButton } from '@/lib/client/storskjerm/StorskjermButton'
 import { useSession } from '@/lib/useSession'
 import { getHostSecret } from '@/lib/identity'
 import { currentReveal, NumberRoller, WinnerCard } from '@/components/DrawDisplay'
@@ -96,13 +96,7 @@ export default function HostPanel({ params }: { params: Promise<{ sessionId: str
             {session.tildeling === 'kjop' && <> · {soldKr} kr</>}
           </p>
         </div>
-        <Link
-          href={`/host/${sessionId}/projector`}
-          target="_blank"
-          className="rounded-xl border border-border px-3 py-2 text-sm text-muted"
-        >
-          Storskjerm ↗
-        </Link>
+        <StorskjermButton tavleHref={`/host/${sessionId}/projector`} />
       </header>
 
       {session.phase === 'ended' && (

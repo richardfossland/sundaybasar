@@ -7,9 +7,19 @@ import { useNow } from '@/lib/useNow'
 import { Confetti } from '@/components/DrawDisplay'
 import { Thermometer } from '@/components/Thermometer'
 import { armAudio, playFanfare, setMuted } from '@/lib/drawSound'
+import { TavleRamme } from '@/lib/client/storskjerm/TavleRamme'
 import { CATEGORY_EMOJI, STAGE_LABEL, currentDutchPrice, deadlineState, fmtCountdown, kr } from '@/types/auction'
 
 export default function AuctionProjector({ params }: { params: Promise<{ sessionId: string }> }) {
+  // TavleRamme gir tavlevisning (?visning=tavle): skjult peker, wake lock, F, avslutt.
+  return (
+    <TavleRamme>
+      <AuctionProjectorView params={params} />
+    </TavleRamme>
+  )
+}
+
+function AuctionProjectorView({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params)
   const { session, items, goalAmount, raisedTotal, loaded, missing } = useAuction(sessionId)
   const now = useNow()
@@ -57,7 +67,7 @@ export default function AuctionProjector({ params }: { params: Promise<{ session
       {celebrate && <Confetti count={120} />}
       <button
         onClick={toggleSound}
-        className="absolute right-6 top-6 rounded-full border border-border px-4 py-2 text-sm text-muted"
+        className="sound-toggle absolute right-6 top-6 rounded-full border border-border px-4 py-2 text-sm text-muted"
       >
         {sound ? '🔊 Lyd på' : '🔇 Lyd av'}
       </button>
