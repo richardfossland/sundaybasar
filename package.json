@@ -25,7 +25,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.6",
+    "@opennextjs/cloudflare": "^1.20.15",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^26.6.3",
     "@types/react": "^19",
